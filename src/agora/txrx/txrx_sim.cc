@@ -20,7 +20,6 @@ PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset)
       core_offset_(core_offset),
       ant_per_cell_(cfg->BsAntNum() / cfg->NumCells()),
       num_socket_thread_(cfg->SocketThreadNum()),
-      beacon_send_time_(0.0f),
       num_interfaces_(cfg->NumRadios()) {}
 
 PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset,
@@ -80,9 +79,10 @@ void PacketTXRX::SendBeacon(TxRxThreadStorage& local_storage, size_t frame_id) {
 
   if (kDebugPrintBeacon) {
     std::printf("TXRX [%zu]: Sending beacon for frame %zu tx delta %f ms\n",
-                local_storage.tid_, frame_id, time_now - beacon_send_time_);
+                local_storage.tid_, frame_id,
+                time_now - local_storage.beacon_send_time_);
   }
-  beacon_send_time_ = time_now;
+  local_storage.beacon_send_time_ = time_now;
 
   for (size_t beacon_sym = 0u; beacon_sym < cfg_->Frame().NumBeaconSyms();
        beacon_sym++) {

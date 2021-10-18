@@ -63,6 +63,7 @@ class TxRxThreadStorage {
   //socket for outgoing messages (data to transmit)
   std::vector<std::unique_ptr<UDPClient>> udp_clients_;
   std::vector<uint8_t> beacon_buffer_;
+  double beacon_send_time_;
 };
 
 /**
@@ -107,12 +108,11 @@ class PacketTXRX {
   void LoopTxRx(size_t tid);  // The thread function for thread [tid]
   int DequeueSend(TxRxThreadStorage& thread_info);
   void SendBeacon(TxRxThreadStorage& thread_info, size_t frame_id);
-
   Packet* RecvEnqueue(TxRxThreadStorage& thread_info, RxPacket& rx_placement,
                       size_t radio_id);
 
-  long long rx_time_bs_;
-  long long tx_time_bs_;
+  //long long rx_time_bs_;
+  //long long tx_time_bs_;
 
   Config* const cfg_;
 
@@ -136,14 +136,9 @@ class PacketTXRX {
   //Producers assigned to tx_pending_q (used for retrieving messages)
   moodycamel::ProducerToken** tx_producer_tokens_;
 
-  //std::vector<std::unique_ptr<UDPServer>> udp_servers_;
-  //std::vector<std::unique_ptr<UDPClient>> udp_clients_;
-
   // Dimension 1: socket_thread
   // Dimension 2: rx_packet
   std::vector<std::vector<RxPacket>> rx_packets_;
-
-  double beacon_send_time_;
   const size_t num_interfaces_;
 };
 
