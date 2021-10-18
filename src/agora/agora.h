@@ -31,7 +31,7 @@
 #include "phy_stats.h"
 #include "signal_handler.h"
 #include "stats.h"
-#include "txrx.h"
+#include "txrx_sim.h"
 #include "utils.h"
 
 class Agora {
