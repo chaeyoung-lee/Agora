@@ -7,6 +7,7 @@
 #include "txrx.h"
 
 #include "logger.h"
+#include "txrx_worker_argos.h"
 #include "txrx_worker_sim.h"
 
 PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset)
@@ -58,11 +59,22 @@ bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
     const size_t radio_lo = (i * num_interfaces_) / num_worker_threads_;
     const size_t radio_hi = ((i + 1) * num_interfaces_) / num_worker_threads_;
 
-    worker_threads_.emplace_back(std::make_unique<TxRxWorkerSim>(
-        core_offset_, i, radio_hi, radio_lo, cfg_, frame_start[i],
-        event_notify_q_, tx_pending_q_, *tx_producer_tokens_[i],
-        *notify_producer_tokens_[i], rx_packets_.at(i),
-        reinterpret_cast<std::byte* const>(tx_buffer)));
+    //This is the spot to choose what type of TxRxWorker you want....
+    if (kUseArgos) {
+      worker_threads_.emplace_back(std::make_unique<TxRxWorkerArgos>(
+          core_offset_, i, radio_hi, radio_lo, cfg_, frame_start[i],
+          event_notify_q_, tx_pending_q_, *tx_producer_tokens_[i],
+          *notify_producer_tokens_[i], rx_packets_.at(i),
+          reinterpret_cast<std::byte* const>(tx_buffer)));
+    } else if (kUseUHD) {
+    } else if (kUseDPDK) {
+    } else {
+      worker_threads_.emplace_back(std::make_unique<TxRxWorkerSim>(
+          core_offset_, i, radio_hi, radio_lo, cfg_, frame_start[i],
+          event_notify_q_, tx_pending_q_, *tx_producer_tokens_[i],
+          *notify_producer_tokens_[i], rx_packets_.at(i),
+          reinterpret_cast<std::byte* const>(tx_buffer)));
+    }
   }
 
   for (auto& worker : worker_threads_) {

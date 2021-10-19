@@ -556,7 +556,9 @@ void RadioConfig::AdjustDelays(std::vector<int> offset) {
   }
 }
 
-bool RadioConfig::InitialCalib(bool sample_adjust) {
+bool RadioConfig::InitialCalib(bool sample_adjust,
+                               Table<arma::cx_float>& calib_ul,
+                               Table<arma::cx_float>& calib_dl) {
   // excludes zero padding
   size_t seq_len = cfg_->PilotCf32().size();
   size_t read_len = cfg_->PilotCi16().size();
@@ -903,7 +905,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           cfg_->OfdmDataNum(), false);
       arma::cx_fvec calib_dl_vec(
           reinterpret_cast<arma::cx_float*>(
-              &init_calib_dl_[good_csi_cnt][id * cfg_->OfdmDataNum()]),
+              &calib_dl[good_csi_cnt][id * cfg_->OfdmDataNum()]),
           cfg_->OfdmDataNum(), false);
       calib_dl_vec = dn_vec;
 
@@ -912,7 +914,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           cfg_->OfdmDataNum(), false);
       arma::cx_fvec calib_ul_vec(
           reinterpret_cast<arma::cx_float*>(
-              &init_calib_ul_[good_csi_cnt][id * cfg_->OfdmDataNum()]),
+              &calib_ul[good_csi_cnt][id * cfg_->OfdmDataNum()]),
           cfg_->OfdmDataNum(), false);
       calib_ul_vec = up_vec;
       // Utils::print_vec(dn_vec / up_vec,

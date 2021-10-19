@@ -10,15 +10,17 @@
 static constexpr bool kPrintCalibrationMats = false;
 
 RadioConfig::RadioConfig(Config* cfg)
-    : cfg_(cfg), num_radios_initialized_(0), num_radios_configured_(0) {
+    : cfg_(cfg),
+      radio_num_(cfg_->NumRadios()),
+      antenna_num_(cfg_->NumRadios() * cfg_->NumChannels()),
+      num_radios_initialized_(0),
+      num_radios_configured_(0) {
   SoapySDR::Kwargs args;
   SoapySDR::Kwargs sargs;
   // load channels
   auto channels = Utils::StrToChannels(cfg_->Channel());
 
-  this->radio_num_ = cfg_->NumRadios();
-  this->antenna_num_ = radio_num_ * cfg_->NumChannels();
-  std::cout << "Radio num is " << this->radio_num_
+  std::cout << "RadioConfig:: Radio num is " << radio_num_
             << " Antenna num: " << antenna_num_ << std::endl;
   if (cfg_->IsUe() == true) {
     throw std::invalid_argument("Bad config! Not a UE!");
@@ -89,8 +91,7 @@ RadioConfig::RadioConfig(Config* cfg)
     num_checks++;
     if (num_checks > 1e9) {
       std::printf(
-          "RadioConfig: Waiting for radio initialization, %zu of %zu "
-          "ready\n",
+          "RadioConfig: Waiting for radio initialization, %zu of %zu ready\n",
           num_radios_config, this->radio_num_);
       num_checks = 0;
     }
@@ -180,7 +181,7 @@ RadioConfig::RadioConfig(Config* cfg)
 }
 
 void RadioConfig::InitBsRadio(size_t tid) {
-  size_t i = tid;
+  const size_t i = tid;
   auto channels = Utils::StrToChannels(cfg_->Channel());
   SoapySDR::Kwargs args;
   SoapySDR::Kwargs sargs;
@@ -304,18 +305,22 @@ bool RadioConfig::RadioStart() {
 
   calib_meas_num_ = cfg_->InitCalibRepeat();
   if (calib_meas_num_ != 0u) {
-    init_calib_ul_.Calloc(calib_meas_num_,
-                          cfg_->OfdmDataNum() * cfg_->BfAntNum(),
-                          Agora_memory::Alignment_t::kAlign64);
-    init_calib_dl_.Calloc(calib_meas_num_,
-                          cfg_->OfdmDataNum() * cfg_->BfAntNum(),
-                          Agora_memory::Alignment_t::kAlign64);
+    Table<arma::cx_float> init_calib_ul;
+    Table<arma::cx_float> init_calib_dl;
+
+    init_calib_ul.Calloc(calib_meas_num_,
+                         cfg_->OfdmDataNum() * cfg_->BfAntNum(),
+                         Agora_memory::Alignment_t::kAlign64);
+    init_calib_dl.Calloc(calib_meas_num_,
+                         cfg_->OfdmDataNum() * cfg_->BfAntNum(),
+                         Agora_memory::Alignment_t::kAlign64);
     if (cfg_->Frame().NumDLSyms() > 0) {
       int iter = 0;
-      int max_iter = 3;
+      const size_t max_iter = 3;
       std::cout << "Start initial reciprocity calibration..." << std::endl;
       while (good_calib == false) {
-        good_calib = InitialCalib(cfg_->SampleCalEn());
+        good_calib =
+            InitialCalib(cfg_->SampleCalEn(), init_calib_ul, init_calib_dl);
         iter++;
         if ((iter == max_iter) && (good_calib == false)) {
           std::cout << "attempted " << max_iter
@@ -334,9 +339,9 @@ bool RadioConfig::RadioStart() {
       arma::cx_fcube calib_ul_cube(cfg_->OfdmDataNum(), cfg_->BfAntNum(),
                                    calib_meas_num_, arma::fill::zeros);
       for (size_t i = 0; i < calib_meas_num_; i++) {
-        arma::cx_fmat calib_dl_mat(init_calib_dl_[i], cfg_->OfdmDataNum(),
+        arma::cx_fmat calib_dl_mat(init_calib_dl[i], cfg_->OfdmDataNum(),
                                    cfg_->BfAntNum(), false);
-        arma::cx_fmat calib_ul_mat(init_calib_ul_[i], cfg_->OfdmDataNum(),
+        arma::cx_fmat calib_ul_mat(init_calib_ul[i], cfg_->OfdmDataNum(),
                                    cfg_->BfAntNum(), false);
         calib_dl_cube.slice(i) = calib_dl_mat;
         calib_ul_cube.slice(i) = calib_ul_mat;
@@ -361,8 +366,8 @@ bool RadioConfig::RadioStart() {
         Utils::PrintMat(calib_dl_mean_mat / calib_ul_mean_mat, "calib_mat");
       }
     }
-    init_calib_dl_.Free();
-    init_calib_ul_.Free();
+    init_calib_dl.Free();
+    init_calib_ul.Free();
   }
 
   std::vector<unsigned> zeros(cfg_->SampsPerSymbol(), 0);
