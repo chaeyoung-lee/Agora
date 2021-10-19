@@ -48,7 +48,7 @@ bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
     for (size_t number_packets = 0; number_packets < buffers_per_socket;
          number_packets++) {
       auto* pkt_loc = reinterpret_cast<Packet*>(
-          frame_start[i] + (number_packets * cfg_->PacketLength()));
+          rx_buffer[i] + (number_packets * cfg_->PacketLength()));
       rx_packets_.at(i).emplace_back(pkt_loc);
     }
 
