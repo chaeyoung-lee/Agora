@@ -25,7 +25,7 @@ TxRxWorker::TxRxWorker(size_t core_offset, size_t tid, size_t radio_hi,
                        moodycamel::ProducerToken& tx_producer,
                        moodycamel::ProducerToken& notify_producer,
                        std::vector<RxPacket>& rx_memory,
-                       uint8_t* const tx_memory)
+                       std::byte* const tx_memory)
     : cfg_(config),
       tid_(tid),
       core_offset_(core_offset),
@@ -257,17 +257,18 @@ int TxRxWorker::DequeueSend() {
         offset, event_notify_q_->size_approx());
   }
 
-  auto* cur_buffer_ptr = &tx_memory_[(offset * c->DlPacketLength())];
-  auto* pkt = reinterpret_cast<Packet*>(cur_buffer_ptr);
+  auto* pkt =
+      reinterpret_cast<Packet*>(&tx_memory_[offset * c->DlPacketLength()]);
   new (pkt) Packet(frame_id, symbol_id, 0 /* cell_id */, ant_id);
 
   assert((ant_id >= interface_offset_) &&
-         (ant_id <= (this->num_interfaces_ + interface_offset_)));
+             (ant_id <= (num_interfaces_ + interface_offset_)),
+         "Antenna ID is not within range\n");
 
   // Send data (one OFDM symbol)
   udp_clients_.at(ant_id - interface_offset_)
-      ->Send(cfg_->BsRruAddr(), cfg_->BsRruPort() + ant_id, cur_buffer_ptr,
-             c->DlPacketLength());
+      ->Send(cfg_->BsRruAddr(), cfg_->BsRruPort() + ant_id,
+             reinterpret_cast<uint8_t*>(pkt), c->DlPacketLength());
 
   //Send tx completion event
   RtAssert(

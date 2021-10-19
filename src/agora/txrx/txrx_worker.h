@@ -23,7 +23,7 @@ class TxRxWorker {
              moodycamel::ConcurrentQueue<EventData>* tx_pending_q,
              moodycamel::ProducerToken& tx_producer,
              moodycamel::ProducerToken& notify_producer,
-             std::vector<RxPacket>& rx_memory, uint8_t* const tx_memory);
+             std::vector<RxPacket>& rx_memory, std::byte* const tx_memory);
 
   void Start();
   void Stop();
@@ -44,7 +44,7 @@ class TxRxWorker {
   size_t* const rx_frame_start_;
 
   std::vector<RxPacket>& rx_memory_;
-  uint8_t* const tx_memory_;
+  std::byte* const tx_memory_;
 
   moodycamel::ConcurrentQueue<EventData>* event_notify_q_;
   moodycamel::ConcurrentQueue<EventData>* tx_pending_q_;

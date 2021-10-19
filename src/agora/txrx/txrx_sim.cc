@@ -60,7 +60,7 @@ bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
                                  frame_start[i], event_notify_q_, tx_pending_q_,
                                  *tx_producer_tokens_[i],
                                  *notify_producer_tokens_[i], rx_packets_.at(i),
-                                 reinterpret_cast<uint8_t*>(tx_buffer));
+                                 reinterpret_cast<std::byte* const>(tx_buffer));
   }
 
   for (auto& worker : worker_threads_) {
