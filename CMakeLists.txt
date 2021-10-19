@@ -272,8 +272,9 @@ if(${USE_DPDK})
     src/common/dpdk_transport.cc)
 else()
   set(AGORA_SOURCES ${AGORA_SOURCES} 
-    src/agora/txrx/txrx_sim.cc
-    src/agora/txrx/txrx_worker.cc)
+    src/agora/txrx/txrx.cc
+    src/agora/txrx/txrx_worker.cc
+    src/agora/txrx/txrx_worker_sim.cc)
 endif()
 add_library(agora_sources_lib OBJECT ${AGORA_SOURCES})
 

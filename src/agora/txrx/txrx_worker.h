@@ -1,8 +1,7 @@
 /**
  * @file txrx_worker.h
- * @brief txrx worker thread defination.  This is the parent / interface
+ * @brief txrx worker thread definition.  This is the parent / interface
  */
-
 #ifndef TXRX_WORKER_H_
 #define TXRX_WORKER_H_
 
@@ -11,8 +10,6 @@
 
 #include "concurrentqueue.h"
 #include "config.h"
-#include "udp_client.h"
-#include "udp_server.h"
 
 class TxRxWorker {
  public:
@@ -25,16 +22,19 @@ class TxRxWorker {
              moodycamel::ProducerToken& notify_producer,
              std::vector<RxPacket>& rx_memory, std::byte* const tx_memory);
 
+  virtual ~TxRxWorker() = default;
+
   void Start();
   void Stop();
-  void DoTxRx();
+  virtual void DoTxRx() = 0;
+
+ protected:
+  inline Config* Configuration() { return cfg_; }
 
  private:
-  int DequeueSend();
-  void SendBeacon(size_t frame_id);
-  Packet* RecvEnqueue(RxPacket& rx_placement, size_t interface_id);
-
   Config* const cfg_;
+
+ protected:
   const size_t tid_;
   const size_t core_offset_;
   const size_t num_interfaces_;
@@ -52,15 +52,6 @@ class TxRxWorker {
   moodycamel::ProducerToken& tx_producer_token_;
   //local producer of notification messages (used for TX and RX)
   moodycamel::ProducerToken& notify_producer_token_;
-
-  //1 for each responsible interface (ie radio)
-  //socket for incomming messages (received data)
-  std::vector<std::unique_ptr<UDPServer>> udp_servers_;
-
-  //socket for outgoing messages (data to transmit)
-  std::vector<std::unique_ptr<UDPClient>> udp_clients_;
-  std::vector<uint8_t> beacon_buffer_;
-  double beacon_send_time_;
 
   std::thread thread_;
 };

@@ -3,7 +3,7 @@
 
 /**
  * @file framestats.h
- * @brief Class defination for frame tracking
+ * @brief Class definition for frame tracking
  * @author Rice University
  */
 
