@@ -60,6 +60,7 @@ class PacketTXRX {
   // {core_offset, ..., core_offset + socket_thread_num - 1}
   const size_t core_offset_;
   const size_t num_interfaces_;
+  const size_t num_worker_threads_;
 
   moodycamel::ConcurrentQueue<EventData>* event_notify_q_;
   moodycamel::ConcurrentQueue<EventData>* tx_pending_q_;

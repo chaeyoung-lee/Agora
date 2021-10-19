@@ -55,9 +55,14 @@ TxRxWorker::TxRxWorker(size_t core_offset, size_t tid, size_t radio_hi,
   beacon_buffer_.resize(config->PacketLength());
 }
 
-void TxRxWorker::Start() { thread_ = std::thread(&TxRxWorker::DoTxRx, this); }
+void TxRxWorker::Start() {
+  MLPD_FRAME("TxRxWorker[%zu] starting\n", tid_);
+  thread_ = std::thread(&TxRxWorker::DoTxRx, this);
+}
 
 void TxRxWorker::Stop() {
+  MLPD_FRAME("TxRxWorker[%zu] stoping\n", tid_);
+  cfg_->Running(false);
   if (thread_.joinable()) {
     thread_.join();
   }
