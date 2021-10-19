@@ -262,8 +262,7 @@ int TxRxWorker::DequeueSend() {
   new (pkt) Packet(frame_id, symbol_id, 0 /* cell_id */, ant_id);
 
   assert((ant_id >= interface_offset_) &&
-             (ant_id <= (num_interfaces_ + interface_offset_)),
-         "Antenna ID is not within range\n");
+         (ant_id <= (num_interfaces_ + interface_offset_)));
 
   // Send data (one OFDM symbol)
   udp_clients_.at(ant_id - interface_offset_)
