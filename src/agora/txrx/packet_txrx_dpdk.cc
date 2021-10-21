@@ -1,14 +1,14 @@
 /**
- * @file txrx_DPDK.cc
- * @brief Implementation of PacketTXRX datapath functions for communicating
+ * @file packet_txrx_dpdk.cc
+ * @brief Implementation of PacketTxRxDpdk datapath functions for communicating
  * with DPDK
  */
 
-#include "txrx.h"
+#include "packet_txrx_dpdk.h"
 
 static constexpr bool kDebugDPDK = false;
 
-PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset)
+PacketTxRxDpdk::PacketTxRxDpdk(Config* cfg, size_t core_offset)
     : cfg_(cfg),
       core_offset_(core_offset),
       ant_per_cell_(cfg->BsAntNum() / cfg->NumCells()),
@@ -55,24 +55,24 @@ PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset)
   std::printf("Number of DPDK cores: %d\n", rte_lcore_count());
 }
 
-PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset,
-                       moodycamel::ConcurrentQueue<EventData>* queue_message,
-                       moodycamel::ConcurrentQueue<EventData>* queue_task,
-                       moodycamel::ProducerToken** rx_ptoks,
-                       moodycamel::ProducerToken** tx_ptoks)
-    : PacketTXRX(cfg, core_offset) {
+PacketTxRxDpdk::PacketTxRxDpdk(
+    Config* cfg, size_t core_offset,
+    moodycamel::ConcurrentQueue<EventData>* queue_message,
+    moodycamel::ConcurrentQueue<EventData>* queue_task,
+    moodycamel::ProducerToken** rx_ptoks, moodycamel::ProducerToken** tx_ptoks)
+    : PacketTxRxDpdk(cfg, core_offset) {
   message_queue_ = queue_message;
   task_queue_ = queue_task;
   rx_ptoks_ = rx_ptoks;
   tx_ptoks_ = tx_ptoks;
 }
 
-PacketTXRX::~PacketTXRX() { rte_mempool_free(mbuf_pool_); }
+PacketTxRxDpdk::~PacketTxRxDpdk() { rte_mempool_free(mbuf_pool_); }
 
-bool PacketTXRX::StartTxRx(Table<char>& buffer, size_t packet_num_in_buffer,
-                           Table<size_t>& frame_start, char* tx_buffer,
-                           Table<complex_float>& calib_dl_buffer,
-                           Table<complex_float>& calib_ul_buffer) {
+bool PacketTxRxDpdk::StartTxRx(Table<char>& buffer, size_t packet_num_in_buffer,
+                               Table<size_t>& frame_start, char* tx_buffer,
+                               Table<complex_float>& calib_dl_buffer,
+                               Table<complex_float>& calib_ul_buffer) {
   unused(calib_dl_buffer);
   unused(calib_ul_buffer);
 
@@ -103,12 +103,12 @@ bool PacketTXRX::StartTxRx(Table<char>& buffer, size_t packet_num_in_buffer,
   RTE_LCORE_FOREACH_SLAVE(lcore_id) {
     // launch communication and task thread onto specific core
     if (worker_id < socket_thread_num_) {
-      auto context = new EventHandlerContext<PacketTXRX>;
+      auto context = new EventHandlerContext<PacketTxRxDpdk>;
       context->obj_ptr_ = this;
       context->id_ = worker_id;
       rte_eal_remote_launch(
           (lcore_function_t*)
-              PthreadFunWrapper<PacketTXRX, &PacketTXRX::LoopTxRx>,
+              PthreadFunWrapper<PacketTxRxDpdk, &PacketTxRxDpdk::LoopTxRx>,
           context, lcore_id);
       std::printf("DPDK TXRX thread %zu: pinned to core %d\n", worker_id,
                   lcore_id);
@@ -118,28 +118,21 @@ bool PacketTXRX::StartTxRx(Table<char>& buffer, size_t packet_num_in_buffer,
   return true;
 }
 
-void PacketTXRX::SendBeacon(int tid, size_t frame_id) {
-  /// \TODO: implement beacon transmission for DPDK mode
-  unused(tid);
-  unused(frame_id);
-}
-
-void PacketTXRX::LoopTxRx(size_t tid) {
+void PacketTxRxDpdk::LoopTxRx(size_t tid) {
   size_t rx_slot = 0;
   size_t prev_frame_id = SIZE_MAX;
   const uint16_t port_id = tid % cfg_->DpdkNumPorts() + cfg_->DpdkPortOffset();
   const uint16_t queue_id = tid / cfg_->DpdkNumPorts();
 
-  while (this->cfg_->Running()) {
-    if (-1 != DequeueSend(tid)) {
-      continue;
+  while (cfg_->Running()) {
+    if (-1 == DequeueSend(tid)) {
+      DpdkRecv((int)tid, port_id, queue_id, prev_frame_id, rx_slot);
     }
-    DpdkRecv((int)tid, port_id, queue_id, prev_frame_id, rx_slot);
   }
 }
 
-uint16_t PacketTXRX::DpdkRecv(int tid, uint16_t port_id, uint16_t queue_id,
-                              size_t& prev_frame_id, size_t& rx_slot) {
+uint16_t PacketTxRxDpdk::DpdkRecv(int tid, uint16_t port_id, uint16_t queue_id,
+                                  size_t& prev_frame_id, size_t& rx_slot) {
   rte_mbuf* rx_bufs[kRxBatchSize];
   uint16_t nb_rx = rte_eth_rx_burst(port_id, queue_id, rx_bufs, kRxBatchSize);
   if (unlikely(nb_rx == 0)) return 0;
@@ -214,7 +207,8 @@ uint16_t PacketTXRX::DpdkRecv(int tid, uint16_t port_id, uint16_t queue_id,
             *rx_ptoks_[tid],
             EventData(EventType::kPacketRX, rx_tag_t(rx).tag_)) == false) {
       std::printf("Failed to enqueue socket message\n");
-      throw std::runtime_error("PacketTXRX: Failed to enqueue socket message");
+      throw std::runtime_error(
+          "PacketTxRxDpdk: Failed to enqueue socket message");
     }
     rx_slot = (rx_slot + 1) % buffers_per_socket_;
   }
@@ -222,7 +216,7 @@ uint16_t PacketTXRX::DpdkRecv(int tid, uint16_t port_id, uint16_t queue_id,
 }
 
 // TODO: check correctness of this funcion
-int PacketTXRX::DequeueSend(int tid) {
+int PacketTxRxDpdk::DequeueSend(int tid) {
   EventData event;
   if (task_queue_->try_dequeue_from_producer(*tx_ptoks_[tid], event) == false) {
     return -1;
@@ -279,7 +273,7 @@ int PacketTXRX::DequeueSend(int tid) {
   size_t nb_tx_new = rte_eth_tx_burst(0, tid, tx_bufs, 1);
   if (unlikely(nb_tx_new != 1)) {
     std::printf("rte_eth_tx_burst() failed\n");
-    throw std::runtime_error("PacketTXRX: rte_eth_tx_burst() failed");
+    throw std::runtime_error("PacketTxRxDpdk: rte_eth_tx_burst() failed");
   }
   RtAssert(
       message_queue_->enqueue(*rx_ptoks_[tid],

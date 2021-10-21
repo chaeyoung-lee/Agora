@@ -47,9 +47,15 @@ Agora::Agora(Config* const cfg)
   InitializeDownlinkBuffers();
 
   /* Initialize TXRX threads */
-  packet_tx_rx_ = std::make_unique<PacketTXRX>(
+#if defined(USE_DPDK)
+  packet_tx_rx_ = std::make_unique<PacketTxRDpdkx>(
       cfg, cfg->CoreOffset() + 1, &message_queue_,
       GetConq(EventType::kPacketTX, 0), rx_ptoks_ptr_, tx_ptoks_ptr_);
+#else
+  packet_tx_rx_ = std::make_unique<PacketTxRx>(
+      cfg, cfg->CoreOffset() + 1, &message_queue_,
+      GetConq(EventType::kPacketTX, 0), rx_ptoks_ptr_, tx_ptoks_ptr_);
+#endif
 
   if (kEnableMac == true) {
     const size_t mac_cpu_core =

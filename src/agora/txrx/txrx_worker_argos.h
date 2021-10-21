@@ -1,6 +1,6 @@
 /**
  * @file txrx_worker_argos.h
- * @brief Implementation of PacketTXRX datapath functions for communicating
+ * @brief Implementation of PacketTxRx datapath functions for communicating
  * with real Argos hardware
  */
 

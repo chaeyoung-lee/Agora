@@ -166,6 +166,11 @@ set(MAC_BS_SOURCES
   src/mac/file_receiver.cc
   src/mac/mac_basestation.cc)
 
+# Don't alloe DPDK with Hardware support
+if((${USE_ARGOS} AND ${USE_DPDK}) OR (${USE_UHD} AND ${USE_DPDK}))
+  message(FATAL_ERROR "USE_DPDK and USE_UHD OR USE_ARGOS cannot be defined together.  Please correct arguments and rerun cmake")
+endif()
+
 # Don't allow both Argos and UHD support
 if(${USE_ARGOS} AND ${USE_UHD})
   message(FATAL_ERROR "Both USE_ARGOS and USE_UHD cannot be defined.  Please correct arguments and rerun cmake")
@@ -268,14 +273,15 @@ set(AGORA_SOURCES
 if(${USE_DPDK})
   add_definitions(-DUSE_DPDK)
   set(AGORA_SOURCES ${AGORA_SOURCES} 
-    src/agora/txrx/txrx_DPDK.cc
+    src/agora/txrx/packet_txrx_dpdk.cc
     src/common/dpdk_transport.cc)
 else()
   set(AGORA_SOURCES ${AGORA_SOURCES} 
-    src/agora/txrx/txrx.cc
+    src/agora/txrx/packet_txrx.cc
     src/agora/txrx/txrx_worker.cc
     src/agora/txrx/txrx_worker_sim.cc
-    src/agora/txrx/txrx_worker_argos.cc)
+    src/agora/txrx/txrx_worker_argos.cc
+    src/agora/txrx/txrx_worker_usrp.cc)
 endif()
 add_library(agora_sources_lib OBJECT ${AGORA_SOURCES})
 

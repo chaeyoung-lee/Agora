@@ -1,6 +1,6 @@
 /**
  * @file txrx_worker.cc
- * @brief Implementation of PacketTXRX initialization functions, and datapath
+ * @brief Implementation of PacketTxRx initialization functions, and datapath
  * functions for communicating with simulators.
  */
 
@@ -172,7 +172,7 @@ Packet* TxRxWorkerSim::RecvEnqueue(RxPacket& rx_placement,
 
   // if rx_buffer is full, exit
   if (rx_placement.Empty() == false) {
-    MLPD_ERROR("PacketTXRX [%zu]: rx_buffer full\n", tid_);
+    MLPD_ERROR("PacketTxRx [%zu]: rx_buffer full\n", tid_);
     Configuration()->Running(false);
     return (nullptr);
   }
@@ -182,7 +182,7 @@ Packet* TxRxWorkerSim::RecvEnqueue(RxPacket& rx_placement,
                          ->Recv(reinterpret_cast<uint8_t*>(pkt), packet_length);
   if (0 > rx_bytes) {
     MLPD_ERROR("RecvEnqueue: Udp Recv failed with error\n");
-    throw std::runtime_error("PacketTXRX: recv failed");
+    throw std::runtime_error("PacketTxRx: recv failed");
   } else if (rx_bytes == 0) {
     pkt = nullptr;
   } else if (static_cast<size_t>(rx_bytes) == packet_length) {
@@ -209,12 +209,12 @@ Packet* TxRxWorkerSim::RecvEnqueue(RxPacket& rx_placement,
     EventData rx_message(EventType::kPacketRX, rx_tag_t(rx_placement).tag_);
     if (event_notify_q_->enqueue(notify_producer_token_, rx_message) == false) {
       MLPD_ERROR("socket message enqueue failed\n");
-      throw std::runtime_error("PacketTXRX: socket message enqueue failed");
+      throw std::runtime_error("PacketTxRx: socket message enqueue failed");
     }
   } else {
     MLPD_ERROR("RecvEnqueue: Udp Recv failed to receive all expected bytes");
     throw std::runtime_error(
-        "PacketTXRX::RecvEnqueue: Udp Recv failed to receive all expected "
+        "PacketTxRx::RecvEnqueue: Udp Recv failed to receive all expected "
         "bytes");
   }
   return pkt;
@@ -244,7 +244,7 @@ int TxRxWorkerSim::DequeueSend() {
 
   if (kDebugPrintInTask) {
     std::printf(
-        "PacketTXRX:DequeueSend [%zu]: Transmitted frame %zu, symbol %zu, "
+        "PacketTxRx:DequeueSend [%zu]: Transmitted frame %zu, symbol %zu, "
         "ant %zu, tag %zu, offset: %zu, msg_queue_length: %zu\n",
         tid_, frame_id, symbol_id, ant_id, gen_tag_t(event.tags_[0]).tag_,
         offset, event_notify_q_->size_approx());

@@ -1,44 +1,45 @@
 /**
- * @file txrx.cc
- * @brief Implementation of PacketTXRX initialization functions, and datapath
+ * @file packet_txrx.cc
+ * @brief Implementation of PacketTxRx initialization functions, and datapath
  * functions for communicating with simulators.
  */
 
-#include "txrx.h"
+#include "packet_txrx.h"
 
 #include "logger.h"
 #include "txrx_worker_argos.h"
 #include "txrx_worker_sim.h"
+#include "txrx_worker_usrp.h"
 
-PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset)
+PacketTxRx::PacketTxRx(Config* cfg, size_t core_offset)
     : cfg_(cfg),
       core_offset_(core_offset),
       num_interfaces_(cfg->NumRadios()),
       num_worker_threads_(cfg->SocketThreadNum()) {}
 
-PacketTXRX::PacketTXRX(Config* cfg, size_t core_offset,
+PacketTxRx::PacketTxRx(Config* cfg, size_t core_offset,
                        moodycamel::ConcurrentQueue<EventData>* event_notify_q,
                        moodycamel::ConcurrentQueue<EventData>* tx_pending_q,
                        moodycamel::ProducerToken** notify_producer_tokens,
                        moodycamel::ProducerToken** tx_producer_tokens)
-    : PacketTXRX(cfg, core_offset) {
+    : PacketTxRx(cfg, core_offset) {
   event_notify_q_ = event_notify_q;
   tx_pending_q_ = tx_pending_q;
   notify_producer_tokens_ = notify_producer_tokens;
   tx_producer_tokens_ = tx_producer_tokens;
 }
 
-PacketTXRX::~PacketTXRX() {
+PacketTxRx::~PacketTxRx() {
   for (auto& worker_threads : worker_threads_) {
     worker_threads->Stop();
   }
 }
 
-bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
+bool PacketTxRx::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
                            Table<size_t>& frame_start, char* tx_buffer,
                            Table<complex_float>& calib_dl_buffer,
                            Table<complex_float>& calib_ul_buffer) {
-  MLPD_INFO("PacketTXRX: txrx threads %zu, packet buffers %zu\n",
+  MLPD_INFO("PacketTxRx: txrx threads %zu, packet buffers %zu\n",
             num_worker_threads_, packet_num_in_buffer);
 
   const size_t buffers_per_thread = packet_num_in_buffer / num_worker_threads_;
@@ -55,7 +56,7 @@ bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
       rx_packets_.at(i).emplace_back(pkt_loc);
     }
 
-    MLPD_SYMBOL("PacketTXRX: Starting thread %zu\n", i);
+    MLPD_SYMBOL("PacketTxRx: Starting thread %zu\n", i);
     const size_t radio_lo = (i * num_interfaces_) / num_worker_threads_;
     const size_t radio_hi = ((i + 1) * num_interfaces_) / num_worker_threads_;
 
@@ -67,7 +68,11 @@ bool PacketTXRX::StartTxRx(Table<char>& rx_buffer, size_t packet_num_in_buffer,
           *notify_producer_tokens_[i], rx_packets_.at(i),
           reinterpret_cast<std::byte* const>(tx_buffer)));
     } else if (kUseUHD) {
-    } else if (kUseDPDK) {
+      worker_threads_.emplace_back(std::make_unique<TxRxWorkerUsrp>(
+          core_offset_, i, radio_hi, radio_lo, cfg_, frame_start[i],
+          event_notify_q_, tx_pending_q_, *tx_producer_tokens_[i],
+          *notify_producer_tokens_[i], rx_packets_.at(i),
+          reinterpret_cast<std::byte* const>(tx_buffer)));
     } else {
       worker_threads_.emplace_back(std::make_unique<TxRxWorkerSim>(
           core_offset_, i, radio_hi, radio_lo, cfg_, frame_start[i],

@@ -1,6 +1,6 @@
 /**
  * @file txrx.h
- * @brief Common definations for PacketTXRX. Including datapath
+ * @brief Common definations for PacketTxRx. Including datapath
  * functions for communicating with simulators.
  */
 
@@ -27,14 +27,14 @@
  * for the client).
  */
 
-class PacketTXRX {
+class PacketTxRx {
  public:
-  PacketTXRX(Config* cfg, size_t core_offset,
+  PacketTxRx(Config* cfg, size_t core_offset,
              moodycamel::ConcurrentQueue<EventData>* event_notify_q,
              moodycamel::ConcurrentQueue<EventData>* tx_pending_q,
              moodycamel::ProducerToken** notify_producer_tokens,
              moodycamel::ProducerToken** tx_producer_tokens);
-  ~PacketTXRX();
+  ~PacketTxRx();
 
   /**
    * @brief Start the network I/O threads
@@ -51,7 +51,7 @@ class PacketTXRX {
                  Table<complex_float>& calib_ul_buffer_);
 
  private:
-  explicit PacketTXRX(Config* cfg, size_t in_core_offset = 1);
+  explicit PacketTxRx(Config* cfg, size_t in_core_offset = 1);
   std::vector<std::unique_ptr<TxRxWorker>> worker_threads_;
 
   Config* const cfg_;

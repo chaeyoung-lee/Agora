@@ -1,6 +1,6 @@
 /**
- * @file txrx_worker.cc
- * @brief Implementation of PacketTXRX datapath functions for communicating
+ * @file txrx_worker_argos.cc
+ * @brief Implementation of PacketTxRx datapath functions for communicating
  * with real Argos hardware
  */
 
@@ -71,27 +71,25 @@ void TxRxWorkerArgos::DoTxRx() {
   ssize_t prev_frame_id = -1;
   size_t local_interface = 0;
   while (Configuration()->Running() == true) {
-    if (-1 != DequeueSend()) {
-      continue;
-    }
-    // receive data
-    auto pkt = RecvEnqueue(local_interface, rx_slot);
-    if (pkt.size() == 0) {
-      continue;
-    }
-    rx_slot = (rx_slot + pkt.size()) % rx_memory_.size();
+    if (DequeueSend() == -1) {
+      // receive data
+      auto pkt = RecvEnqueue(local_interface, rx_slot);
+      if (pkt.size() != 0) {
+        rx_slot = (rx_slot + pkt.size()) % rx_memory_.size();
 
-    if (kIsWorkerTimingEnabled) {
-      int frame_id = pkt.front()->frame_id_;
-      if (frame_id > prev_frame_id) {
-        rx_frame_start_[frame_id % kNumStatsFrames] = GetTime::Rdtsc();
-        prev_frame_id = frame_id;
-      }
-    }
-    if (++local_interface == num_interfaces_) {
-      local_interface = 0;
-    }
-  }
+        if (kIsWorkerTimingEnabled) {
+          int frame_id = pkt.front()->frame_id_;
+          if (frame_id > prev_frame_id) {
+            rx_frame_start_[frame_id % kNumStatsFrames] = GetTime::Rdtsc();
+            prev_frame_id = frame_id;
+          }
+        }
+        if (++local_interface == num_interfaces_) {
+          local_interface = 0;
+        }
+      }  // if pkt.size() != 0
+    }    // if DequeueSend() == -1
+  }      // while Configuration()->Running() == true
 }
 
 //RX data
