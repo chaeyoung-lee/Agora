@@ -65,7 +65,7 @@ bool PacketTxRxRadio::CreateWorker(size_t tid, size_t interface_count,
   MLPD_INFO(
       "PacketTxRxRadio[%zu]: Creating worker handling %zu interfaces starting "
       "at %zu - antennas %zu:%zu\n",
-      tid, interface_offset, interface_count,
+      tid, interface_count, interface_offset,
       interface_offset * cfg_->NumChannels(),
       ((interface_offset * cfg_->NumChannels()) +
        (interface_count * cfg_->NumChannels()) - 1));

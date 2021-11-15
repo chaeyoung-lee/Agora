@@ -84,9 +84,11 @@ Config::Config(const std::string& jsonfile)
       num_radios_ = tdd_conf.value("radio_num", ue_radios);
       ue_num_ = num_radios_;
       ue_ant_num_ = ue_num_ * num_channels_;
+      num_antennas_ = ue_ant_num_;
     } else {
       num_radios_ = tdd_conf.value("radio_num", bs_ant_num_);
       ue_ant_num_ = ue_num_;
+      num_antennas_ = bs_ant_num_;
     }
   }
   bf_ant_num_ = bs_ant_num_;

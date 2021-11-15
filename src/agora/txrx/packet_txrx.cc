@@ -27,17 +27,33 @@ PacketTxRx::PacketTxRx(Config* const cfg, size_t core_offset,
   notify_producer_tokens_ = notify_producer_tokens;
   tx_producer_tokens_ = tx_producer_tokens;
 
-  const size_t buffers_per_thread = packet_num_in_buffer / num_worker_threads_;
-  /// Make sure we can fit each channel in the tread buffer without rollover
-  assert(buffers_per_thread % cfg_->NumChannels() == 0);
-
-  size_t interface_offset = 0;
-  size_t interface_count = num_ant_per_worker_ / cfg_->NumChannels();
+  const size_t interfaces_per_worker =
+      num_ant_per_worker_ / cfg_->NumChannels();
   RtAssert((num_ant_per_worker_ % cfg_->NumChannels()) == 0,
            "Socket threads are misaligned with the number of channels\n");
 
-  rx_packets_.resize(num_worker_threads_);
-  for (size_t i = 0; i < num_worker_threads_; i++) {
+  size_t min_threads = cfg->NumAntennas() / num_ant_per_worker_;
+  std::printf("Number of worker threads %zu, min threads %zu\n",
+              num_worker_threads_, min_threads);
+
+  if (min_threads < num_worker_threads_) {
+    MLPD_WARN(
+        "Using less than requested number of socket worker threads %zu : %zu\n",
+        min_threads, num_worker_threads_);
+  } else {
+    min_threads = num_worker_threads_;
+  }
+
+  const size_t buffers_per_thread = packet_num_in_buffer / min_threads;
+  /// Make sure we can fit each channel in the tread buffer without rollover
+  assert(buffers_per_thread % cfg_->NumChannels() == 0);
+
+  rx_packets_.resize(min_threads);
+  for (size_t i = 0; i < min_threads; i++) {
+    const size_t interface_offset = (i * interfaces_per_worker);
+    const size_t interface_count =
+        std::min(interfaces_per_worker, num_interfaces_ - interface_offset);
+
     rx_packets_.at(i).reserve(buffers_per_thread);
     for (size_t number_packets = 0; number_packets < buffers_per_thread;
          number_packets++) {
@@ -49,18 +65,6 @@ PacketTxRx::PacketTxRx(Config* const cfg, size_t core_offset,
     CreateWorker(i, interface_count, interface_offset, frame_start[i],
                  rx_packets_.at(i),
                  reinterpret_cast<std::byte* const>(tx_buffer));
-
-    interface_offset += interface_count;
-    if (num_interfaces_ == (interface_offset + interface_count)) {
-      MLPD_ERROR("Using less than requested number of worker threads\n");
-      break;
-    } else if (num_interfaces_ < (interface_offset + interface_count)) {
-      const size_t thread_interfaces =
-          (interface_offset + interface_count) - num_interfaces_;
-      MLPD_WARN("Worker %zu is handling less than typical interfaces %zu:%zu\n",
-                i, thread_interfaces, interface_count);
-      interface_count = thread_interfaces;
-    }
   }
 }
 
@@ -94,7 +98,7 @@ bool PacketTxRx::CreateWorker(size_t tid, size_t interface_count,
   MLPD_INFO(
       "PacketTxRx[%zu]: Creating worker handling %zu interfaces starting at "
       "%zu - antennas %zu:%zu\n",
-      tid, interface_offset, interface_count,
+      tid, interface_count, interface_offset,
       interface_offset * cfg_->NumChannels(),
       ((interface_offset * cfg_->NumChannels()) +
        (interface_count * cfg_->NumChannels()) - 1));
