@@ -56,5 +56,6 @@ class TxRxWorker {
   moodycamel::ProducerToken& notify_producer_token_;
 
   std::thread thread_;
+  bool running_;
 };
 #endif  // TXRX_WORKER_H_

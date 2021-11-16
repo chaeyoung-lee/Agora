@@ -39,6 +39,8 @@ void TxRxWorkerArgos::DoTxRx() {
   size_t rx_slot = 0;
   ssize_t prev_frame_id = -1;
   size_t local_interface = 0;
+
+  running_ = true;
   while (Configuration()->Running() == true) {
     if (0 == DequeueSend()) {
       // receive data
@@ -61,6 +63,7 @@ void TxRxWorkerArgos::DoTxRx() {
       }  // if pkts.size() != 0
     }    // if DequeueSend() == -1
   }      // while Configuration()->Running() == true
+  running_ = false;
 }
 
 //RX data
