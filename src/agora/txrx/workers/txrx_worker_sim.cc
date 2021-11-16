@@ -75,6 +75,8 @@ void TxRxWorkerSim::DoTxRx() {
   size_t tx_frame_id = 0;
   size_t send_time = delay_tsc + tx_frame_start;
   size_t current_interface = 0;
+
+  running_ = true;
   // Send Beacons for the first time to kick off sim
   // SendBeacon(tid, tx_frame_id++);
   while (Configuration()->Running() == true) {
@@ -120,6 +122,7 @@ void TxRxWorkerSim::DoTxRx() {
       }
     }  // end if -1 == send_result
   }    // end while
+  running_ = false;
 }
 
 void TxRxWorkerSim::SendBeacon(size_t frame_id) {

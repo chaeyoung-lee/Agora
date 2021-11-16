@@ -33,9 +33,6 @@ PacketTxRx::PacketTxRx(Config* const cfg, size_t core_offset,
            "Socket threads are misaligned with the number of channels\n");
 
   size_t min_threads = cfg->NumAntennas() / num_ant_per_worker_;
-  std::printf("Number of worker threads %zu, min threads %zu\n",
-              num_worker_threads_, min_threads);
-
   if (min_threads < num_worker_threads_) {
     MLPD_WARN(
         "Using less than requested number of socket worker threads %zu : %zu\n",

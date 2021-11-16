@@ -80,6 +80,8 @@ void TxRxWorkerUsrp::DoTxRx() {
 
   int prev_frame_id = -1;
   size_t local_interface = 0;
+
+  running_ = true;
   while (Configuration()->Running() == true) {
     // transmit data
     // if (-1 != dequeue_send_usrp(tid))
@@ -126,6 +128,7 @@ void TxRxWorkerUsrp::DoTxRx() {
       }
     }
   }
+  running_ = false;
 }
 
 //RX data
