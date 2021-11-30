@@ -82,6 +82,7 @@ void TxRxWorkerUsrp::DoTxRx() {
   size_t local_interface = 0;
 
   running_ = true;
+  started_ = true;
   while (Configuration()->Running() == true) {
     // transmit data
     // if (-1 != dequeue_send_usrp(tid))

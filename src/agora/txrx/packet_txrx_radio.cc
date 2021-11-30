@@ -53,7 +53,12 @@ bool PacketTxRxRadio::StartTxRx(Table<complex_float>& calib_dl_buffer,
   } else {
     PacketTxRx::StartTxRx(calib_dl_buffer, calib_ul_buffer);
 
-    //Wait untill all threads have started before triggering start
+    for (auto& worker : worker_threads_) {
+      while (worker->Started() == false) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      MLPD_INFO("PacketTxRxRadio[%zu] : worker started \n", worker->Id());
+    }
     radio_config_->Go();
   }
   return status;

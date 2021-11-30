@@ -28,6 +28,10 @@ class TxRxWorker {
   virtual void Stop();
   virtual void DoTxRx() = 0;
 
+  inline size_t Id() const { return tid_; }
+  inline bool Started() const { return started_; }
+  inline bool Running() const { return running_; }
+
  protected:
   inline Config* Configuration() { return cfg_; }
 
@@ -57,5 +61,6 @@ class TxRxWorker {
 
   std::thread thread_;
   bool running_;
+  bool started_;
 };
 #endif  // TXRX_WORKER_H_

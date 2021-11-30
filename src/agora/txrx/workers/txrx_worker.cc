@@ -32,6 +32,7 @@ TxRxWorker::TxRxWorker(size_t core_offset, size_t tid, size_t interface_count,
       tx_producer_token_(tx_producer),
       notify_producer_token_(notify_producer) {
   running_ = false;
+  started_ = false;
 }
 
 TxRxWorker::~TxRxWorker() { Stop(); }
@@ -39,11 +40,6 @@ TxRxWorker::~TxRxWorker() { Stop(); }
 void TxRxWorker::Start() {
   MLPD_FRAME("TxRxWorker[%zu] starting\n", tid_);
   thread_ = std::thread(&TxRxWorker::DoTxRx, this);
-
-  //Wait until worker has started
-  while (running_ == false) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-  }
 }
 
 void TxRxWorker::Stop() {
