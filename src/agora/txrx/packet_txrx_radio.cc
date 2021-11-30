@@ -52,6 +52,8 @@ bool PacketTxRxRadio::StartTxRx(Table<complex_float>& calib_dl_buffer,
     std::fprintf(stderr, "PacketTxRxRadio: Failed to start radio\n");
   } else {
     PacketTxRx::StartTxRx(calib_dl_buffer, calib_ul_buffer);
+
+    //Wait untill all threads have started before triggering start
     radio_config_->Go();
   }
   return status;

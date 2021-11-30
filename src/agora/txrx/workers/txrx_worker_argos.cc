@@ -36,10 +36,15 @@ void TxRxWorkerArgos::DoTxRx() {
             interface_offset_, (interface_offset_ + num_interfaces_) - 1,
             num_interfaces_);
 
+  if (num_interfaces_ == 0) {
+    MLPD_WARN("LoopTxRxArgos[%zu] has no interfaces, exiting\n", tid_);
+    running_ = false;
+    return;
+  }
+
   size_t rx_slot = 0;
   ssize_t prev_frame_id = -1;
   size_t local_interface = 0;
-
   running_ = true;
   while (Configuration()->Running() == true) {
     if (0 == DequeueSend()) {
@@ -57,7 +62,8 @@ void TxRxWorkerArgos::DoTxRx() {
             prev_frame_id = frame_id;
           }
         }
-        if (++local_interface == num_interfaces_) {
+        local_interface++;
+        if (local_interface == num_interfaces_) {
           local_interface = 0;
         }
       }  // if pkts.size() != 0
@@ -200,20 +206,32 @@ size_t TxRxWorkerArgos::DequeueSend() {
         std::vector<std::complex<int16_t>> zeros(
             Configuration()->SampsPerSymbol(), std::complex<int16_t>(0, 0));
         for (size_t s = 0; s < Configuration()->RadioPerGroup(); s++) {
-          bool calib_turn = (frame_id % Configuration()->RadioGroupNum() ==
-                                 radio_id / Configuration()->RadioPerGroup() &&
-                             s == radio_id % Configuration()->RadioPerGroup());
-          for (size_t ch = 0; ch < channels_per_interface; ch++) {
-            caltxbuf.at(ch) =
-                calib_turn ? Configuration()->PilotCi16().data() : zeros.data();
+          if (radio_id != Configuration()->RefRadio()) {
+            bool calib_turn =
+                (frame_id % Configuration()->RadioGroupNum() ==
+                     radio_id / Configuration()->RadioPerGroup() &&
+                 s == radio_id % Configuration()->RadioPerGroup());
+            for (size_t ch = 0; ch < channels_per_interface; ch++) {
+              caltxbuf.at(ch) = calib_turn ? Configuration()->PilotCi16().data()
+                                           : zeros.data();
+              if (channels_per_interface > 1) {
+                caltxbuf.at(1 - ch) = zeros.data();
+              }
+              long long frame_time =
+                  ((long long)(frame_id + TX_FRAME_DELTA) << 32) |
+                  (Configuration()->Frame().GetDLCalSymbol(
+                       s * channels_per_interface + ch)
+                   << 16);
+              radio_config_->RadioTx(radio_id, caltxbuf.data(), 1, frame_time);
+            }
+          } else {
+            caltxbuf.at(0) = cfg_->PilotCi16().data();
             if (channels_per_interface > 1) {
-              caltxbuf.at(1 - ch) = zeros.data();
+              caltxbuf.at(1) = zeros.data();
             }
             long long frame_time =
                 ((long long)(frame_id + TX_FRAME_DELTA) << 32) |
-                (Configuration()->Frame().GetDLCalSymbol(
-                     s * channels_per_interface + ch)
-                 << 16);
+                (Configuration()->Frame().GetULCalSymbol(0) << 16);
             radio_config_->RadioTx(radio_id, caltxbuf.data(), 1, frame_time);
           }
         }
