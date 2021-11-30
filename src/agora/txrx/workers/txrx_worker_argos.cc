@@ -226,7 +226,7 @@ size_t TxRxWorkerArgos::DequeueSend() {
               radio_config_->RadioTx(radio_id, caltxbuf.data(), 1, frame_time);
             }
           } else {
-            caltxbuf.at(0) = cfg_->PilotCi16().data();
+            caltxbuf.at(0) = Configuration()->PilotCi16().data();
             if (channels_per_interface > 1) {
               caltxbuf.at(1) = zeros.data();
             }

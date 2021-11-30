@@ -77,6 +77,7 @@ void TxRxWorkerSim::DoTxRx() {
   size_t current_interface = 0;
 
   running_ = true;
+  started_ = true;
   // Send Beacons for the first time to kick off sim
   // SendBeacon(tid, tx_frame_id++);
   while (Configuration()->Running() == true) {
