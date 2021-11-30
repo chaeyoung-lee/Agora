@@ -61,10 +61,6 @@ class PacketTxRx {
   Config* const cfg_;
 
   const size_t core_offset_;
-  const size_t num_interfaces_;
-  const size_t num_worker_threads_;
-  const size_t num_ant_per_worker_;
-
   moodycamel::ConcurrentQueue<EventData>* event_notify_q_;
   moodycamel::ConcurrentQueue<EventData>* tx_pending_q_;
 
@@ -82,6 +78,10 @@ class PacketTxRx {
   // Dimension 1: socket_thread
   // Dimension 2: rx_packet
   std::vector<std::vector<RxPacket>> rx_packets_;
+  std::byte* const tx_memory_;
+  Table<size_t>& frame_start_;
+
+  std::vector<size_t> interface_to_worker_;
 };
 
 #endif  // PACKETTXRX_H_

@@ -214,8 +214,8 @@ Packet* TxRxWorkerSim::RecvEnqueue(RxPacket& rx_placement,
 
 //Function of the TxRx thread
 size_t TxRxWorkerSim::DequeueSend() {
-  const size_t max_dequeue_items =
-      (Configuration()->BsAntNum() / Configuration()->SocketThreadNum()) + 1;
+  const size_t channels_per_interface = Configuration()->NumChannels();
+  const size_t max_dequeue_items = num_interfaces_ * channels_per_interface;
   std::vector<EventData> events(max_dequeue_items);
 
   //Single producer ordering in q is preserved

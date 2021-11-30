@@ -45,7 +45,6 @@ void TxRxWorker::Start() {
 void TxRxWorker::Stop() {
   MLPD_FRAME("TxRxWorker[%zu] stopping\n", tid_);
   cfg_->Running(false);
-  running_ = false;
   if (thread_.joinable()) {
     thread_.join();
   }

@@ -36,17 +36,18 @@ void TxRxWorkerArgos::DoTxRx() {
             interface_offset_, (interface_offset_ + num_interfaces_) - 1,
             num_interfaces_);
 
+  size_t rx_slot = 0;
+  ssize_t prev_frame_id = -1;
+  size_t local_interface = 0;
+  running_ = true;
+  started_ = true;
+
   if (num_interfaces_ == 0) {
     MLPD_WARN("LoopTxRxArgos[%zu] has no interfaces, exiting\n", tid_);
     running_ = false;
     return;
   }
 
-  size_t rx_slot = 0;
-  ssize_t prev_frame_id = -1;
-  size_t local_interface = 0;
-  running_ = true;
-  started_ = true;
   while (Configuration()->Running() == true) {
     if (0 == DequeueSend()) {
       // receive data
@@ -99,12 +100,18 @@ std::vector<Packet*> TxRxWorkerArgos::RecvEnqueue(size_t interface_id,
   }
 
   long long frame_time;
-  if ((Configuration()->Running() == false) ||
-      radio_config_->RadioRx(global_interface_id, samp.data(), frame_time) <=
-          0) {
+  int rx_status =
+      radio_config_->RadioRx(global_interface_id, samp.data(), frame_time);
+
+  if (rx_status <= 0) {
+    if (rx_status < 0) {
+      MLPD_ERROR("RX status = %d is less than 0\n", rx_status);
+    }
     std::vector<Packet*> empty_pkt;
     return empty_pkt;
-  }
+  } else if (rx_status != Configuration()->SampsPerSymbol()) {
+    MLPD_ERROR("RX status = %d is not the expected value\n", rx_status);
+  }  /// This check is redundant
 
   size_t frame_id = (size_t)(frame_time >> 32);
   size_t symbol_id = (size_t)((frame_time >> 16) & 0xFFFF);
@@ -160,9 +167,8 @@ std::vector<Packet*> TxRxWorkerArgos::RecvEnqueue(size_t interface_id,
 
 //Tx data
 size_t TxRxWorkerArgos::DequeueSend() {
-  const size_t max_dequeue_items =
-      (Configuration()->BsAntNum() / Configuration()->SocketThreadNum()) + 1;
   const size_t channels_per_interface = Configuration()->NumChannels();
+  const size_t max_dequeue_items = num_interfaces_ * channels_per_interface;
   std::vector<EventData> events(max_dequeue_items);
 
   //Single producer ordering in q is preserved
@@ -180,8 +186,8 @@ size_t TxRxWorkerArgos::DequeueSend() {
     const size_t ant_id = gen_tag_t(current_event.tags_[0u]).ant_id_;
     const size_t radio_id = ant_id / channels_per_interface;
 
-    assert((radio_id >= interface_offset_) &&
-           (radio_id <= (interface_offset_ + num_interfaces_)));
+    RtAssert((radio_id >= interface_offset_) &&
+             (radio_id <= (interface_offset_ + num_interfaces_)));
 
     //See if this is the last antenna on the radio.  Assume that we receive the last one
     // last (and all the others came before).  No explicit tracking
