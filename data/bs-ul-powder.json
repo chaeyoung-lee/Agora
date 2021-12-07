@@ -1,0 +1,34 @@
+{
+  "hubs": "data/bs-hub-serials-powder.txt",
+  "irises": "data/bs-iris-serials-powder-ul.txt",
+  "cells": 1,
+  "channel": "AB",
+  "frequency": 3.56e9,
+  "single_gain": true,
+  "rx_gain_a": 60,
+  "tx_gain_a": 75,
+  "rx_gain_b": 60,
+  "tx_gain_b": 75,
+  "rate": 5e6,
+  "cp_len": 32,
+  "ofdm_ca_num": 2048,
+  "ofdm_data_num": 1200,
+  "modulation": "16QAM",
+  "demul_block_size": 48,
+  "Zc": 72,
+  "ofdm_tx_zero_prefix": 160,
+  "ofdm_tx_zero_postfix": 160,
+  "ofdm_rx_zero_prefix_bs": 160,
+  "frames": [
+    "BGGGGGPPPPGGGUUUGGG"
+  ],
+  "client_ul_pilot_syms": 2,
+  "beamsweep": false,
+  "beacon_antenna": 0,
+  /* Compute configuration */
+  "core_offset": 16,
+  "exclude_cores": [],
+  "worker_thread_num": 12,
+  /* 22 bs radios */
+  "socket_thread_num": 11
+}
