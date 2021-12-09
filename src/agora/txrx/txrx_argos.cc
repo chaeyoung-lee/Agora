@@ -10,6 +10,7 @@ static constexpr bool kDebugDownlink = false;
 
 void PacketTXRX::LoopTxRxArgos(size_t tid) {
   PinToCoreWithOffset(ThreadType::kWorkerTXRX, core_offset_, tid);
+  const double rdtsc_freq = GetTime::MeasureRdtscFreq();
 
   size_t* const rx_frame_start = (*frame_start_)[tid];
   size_t rx_slot = 0;
@@ -26,19 +27,48 @@ void PacketTXRX::LoopTxRxArgos(size_t tid) {
     MLPD_INFO("LoopTxRxArgos[%zu] has no radios, exiting\n", tid);
     return;
   }
+
+  const size_t num_radios = (radio_hi - radio_lo) + 1;
   MLPD_INFO("LoopTxRxArgos[%zu] has %zu:%zu total radios %zu\n", tid, radio_lo,
-            radio_hi, (radio_hi - radio_lo) + 1);
+            radio_hi, num_radios);
 
   ssize_t prev_frame_id = -1;
   size_t radio_id = radio_lo;
+
+  std::vector<double> rx_timing;
+  rx_timing.resize(num_radios);
+
   while (cfg_->Running() == true) {
-    if (0 == DequeueSendArgos(tid)) {
-      // receive data
+    const size_t loop_start = GetTime::Rdtsc();
+    const size_t dequeue_status = DequeueSendArgos(tid);
+    if (0 < dequeue_status) {
+      const double dequeue_ms =
+          GetTime::CyclesToMs(GetTime::Rdtsc() - loop_start, rdtsc_freq);
+      if (dequeue_ms > 1.0f) {
+        std::printf(
+            "++++++++++++ LoopTxRxArgos[%zu]: tx taking longer than expected: "
+            "%f !!!!!!!!!!!!!!!!!!!!!\n",
+            tid, dequeue_ms);
+      }
+
+    } else {
       auto pkts = RecvEnqueueArgos(tid, radio_id, rx_slot);
+      rx_timing.at(radio_id - radio_lo) =
+          GetTime::CyclesToMs(GetTime::Rdtsc() - loop_start, rdtsc_freq);
       if (pkts.size() > 0) {
         rx_slot = (rx_slot + pkts.size()) % buffers_per_socket_;
         RtAssert(pkts.size() == cfg_->NumChannels(),
                  "Received data but it was the wrong dimension");
+
+        if (((radio_id == radio_lo) &&
+             (rx_timing.at(radio_id - radio_lo) > 6.6f)) ||
+            ((radio_id != radio_lo) &&
+             (rx_timing.at(radio_id - radio_lo) > 1.0f))) {
+          std::printf(
+              "++++++++++++  LoopTxRxArgos[%zu]: radio %zu took longer than "
+              "expected to rx data: %f !!!!!!!!!!!!!!!!!!!!!\n",
+              tid, radio_id, rx_timing.at(radio_id - radio_lo));
+        }
 
         if (kIsWorkerTimingEnabled) {
           const int frame_id = pkts.front()->frame_id_;
@@ -53,8 +83,12 @@ void PacketTXRX::LoopTxRxArgos(size_t tid) {
           radio_id++;
         }
       }  // if (pkt.size() > 0)
-    }    // DequeueSendArgos(tid) == 0
-  }      // cfg_->Running() == true
+      else if (pkts.size() == 0) {
+        MLPD_TRACE("LoopTxRxArgos[%zu]: radio %zu has no rx data\n", tid,
+                  radio_id);
+      }
+    }  // DequeueSendArgos(tid) == 0
+  }    // cfg_->Running() == true
 }
 
 std::vector<Packet*> PacketTXRX::RecvEnqueueArgos(size_t tid, size_t radio_id,
@@ -81,8 +115,9 @@ std::vector<Packet*> PacketTXRX::RecvEnqueueArgos(size_t tid, size_t radio_id,
   }
 
   long long frame_time;
-  if ((cfg_->Running() == false) ||
-      radioconfig_->RadioRx(radio_id, samp.data(), frame_time) <= 0) {
+  const int rx_result =
+      radioconfig_->RadioRx(radio_id, samp.data(), frame_time);
+  if ((cfg_->Running() == false) || rx_result <= 0) {
     std::vector<Packet*> empty_pkt;
     return empty_pkt;
   }
@@ -106,8 +141,10 @@ std::vector<Packet*> PacketTXRX::RecvEnqueueArgos(size_t tid, size_t radio_id,
       std::vector<char> dummy_buff(packet_length);
       tmp_samp.at(0) = rx.RawPacket()->data_;
       tmp_samp.at(1) = dummy_buff.data();
-      if ((cfg_->Running() == false) ||
-          radioconfig_->RadioRx(radio_id, tmp_samp.data(), frame_time) <= 0) {
+
+      const int rx_result =
+          radioconfig_->RadioRx(radio_id, tmp_samp.data(), frame_time);
+      if ((cfg_->Running() == false) || rx_result <= 0) {
         std::vector<Packet*> empty_pkt;
         return empty_pkt;
       }

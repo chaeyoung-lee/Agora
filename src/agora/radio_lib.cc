@@ -526,19 +526,21 @@ void RadioConfig::RadioRx(void** buffs) {
   long long frame_time(0);
   for (size_t i = 0; i < this->radio_num_; i++) {
     void** buff = buffs + (i * 2);
-    ba_stn_[i]->readStream(this->rx_streams_[i], buff, cfg_->SampsPerSymbol(),
-                           flags, frame_time, 1000000);
+    ba_stn_.at(i)->readStream(this->rx_streams_.at(i), buff,
+                              cfg_->SampsPerSymbol(), flags, frame_time,
+                              1000000);
   }
 }
 
 int RadioConfig::RadioRx(size_t r /*radio id*/, void** buffs,
                          long long& frameTime) {
+  constexpr size_t kReadWaitUs = 7000;
   int flags = 0;
   if (r < this->radio_num_) {
     long long frame_time_ns = 0;
-    int ret = ba_stn_[r]->readStream(this->rx_streams_[r], buffs,
-                                     cfg_->SampsPerSymbol(), flags,
-                                     frame_time_ns, 1000000);
+    int ret = ba_stn_.at(r)->readStream(rx_streams_.at(r), buffs,
+                                        cfg_->SampsPerSymbol(), flags,
+                                        frame_time_ns, kReadWaitUs);
 
     if (!kUseUHD) {
       // SoapySDR::timeNsToTicks(frameTimeNs, _rate);
@@ -548,17 +550,19 @@ int RadioConfig::RadioRx(size_t r /*radio id*/, void** buffs,
       frameTime = SoapySDR::timeNsToTicks(frame_time_ns, cfg_->Rate());
     }
 
-    if (kDebugRadioRX) {
-      if (ret != (int)cfg_->SampsPerSymbol()) {
+    if (true) {
+      if ((ret != -1) && (ret != (int)cfg_->SampsPerSymbol())) {
         std::cout << "invalid return " << ret << " from radio " << r
-                  << std::endl;
-      } else {
-        std::cout << "radio " << r << "received " << ret << std::endl;
+                  << " flags " << flags << std::endl;
       }
+      //} else {
+      //  std::cout << "radio " << r << " received " << ret << std::endl;
+      //}
     }
     return ret;
   }
   std::cout << "invalid radio id " << r << std::endl;
+  throw std::runtime_error("invalid radio id");
   return 0;
 }
 

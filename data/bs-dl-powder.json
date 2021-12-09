@@ -25,7 +25,7 @@
   "beamsweep": false,
   "beacon_antenna": 0,
   "frames": [
-    "BGCLGGPPGGGDDDGGG"
+    "BGCLGGPPGDDDG"
   ],
   "hw_framer": true,
   "client_dl_pilot_syms": 2,
@@ -34,7 +34,7 @@
   /* Compute configuration */
   "core_offset": 16,
   "exclude_cores": [],
-  "worker_thread_num": 10,
-  /* 21 + 1 */
-  "socket_thread_num": 11
+  "worker_thread_num": 16,
+  /* 22 + 1 */
+  "socket_thread_num": 6
 }
