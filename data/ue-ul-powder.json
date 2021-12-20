@@ -33,5 +33,6 @@
   "core_offset": 12,
   "exclude_cores": [],
   "worker_thread_num": 4,
-  "socket_thread_num": 1
+  "socket_thread_num": 1,
+  "frames_to_test": 10000
 }
