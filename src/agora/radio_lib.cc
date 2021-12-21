@@ -436,11 +436,11 @@ bool RadioConfig::RadioStart() {
     ba_stn_[i]->writeRegisters("BEACON_RAM", 0, beacon);
     for (char const& c : cfg_->Channel()) {
       bool is_beacon_antenna = !cfg_->Beamsweep() && ndx == cfg_->BeaconAnt();
-      std::vector<unsigned> beacon_weights(cfg_->NumAntennas(),
+      std::vector<unsigned> beacon_weights( cfg_->NumChannels() * cfg_->NumRadios(),
                                            is_beacon_antenna ? 1 : 0);
       std::string tx_ram_wgt = "BEACON_RAM_WGT_";
       if (cfg_->Beamsweep()) {
-        for (size_t j = 0; j < cfg_->NumAntennas(); j++) {
+        for (size_t j = 0; j < beacon_weights.size(); j++) {
           beacon_weights[j] = CommsLib::Hadamard2(ndx, j);
         }
       }
