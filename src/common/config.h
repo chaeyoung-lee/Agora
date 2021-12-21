@@ -382,6 +382,7 @@ class Config {
   }
 
  private:
+  void Print() const;
   /* Class constants */
   inline static const size_t kDefaultSymbolNumPerFrame = 70;
   inline static const size_t kDefaultPilotSymPerFrame = 8;
