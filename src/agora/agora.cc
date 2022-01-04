@@ -65,6 +65,9 @@ Agora::Agora(Config* const cfg)
   // Create worker threads
   CreateThreads();
 
+  // Call dynamic core allocation
+  dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
+
   MLPD_INFO(
       "Master thread core %zu, TX/RX thread cores %zu--%zu, worker thread "
       "cores %zu--%zu\n",
@@ -85,6 +88,9 @@ Agora::~Agora() {
   }
   FreeUplinkBuffers();
   FreeDownlinkBuffers();
+
+  // Dynamic core allocation
+  dynamic_core_thread_.join();
 
   stats_.reset();
   phy_stats_.reset();
@@ -850,7 +856,8 @@ void Agora::Worker(int tid) {
   size_t cur_qid = 0;
   size_t empty_queue_itrs = 0;
   bool empty_queue = true;
-  while (this->config_->Running() == true) {
+  bool status = true; // worker status
+  while (this->config_->Running() == true && status == true) {
     for (size_t i = 0; i < computers_vec.size(); i++) {
       if (computers_vec.at(i)->TryLaunch(*GetConq(events_vec.at(i), cur_qid),
                                          complete_task_queue_[cur_qid],
@@ -997,6 +1004,42 @@ void Agora::CreateThreads() {
       workers_.emplace_back(&Agora::Worker, this, i);
     }
   }
+}
+
+/*
+Dynamically (de)allocate workers during runtime, based on configuration.
+*/
+void Agora::DynamicCore() {
+  // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
+    // size_t next_core_num_ = cfg->DynamicCoreNums()[i];
+    size_t next_core_num_ = 40;
+
+    // Hanging until necessary
+    sleep(10);
+
+    std::printf("=================================\n");
+    std::printf("[ALERT] DYNAMIC CORE ALLOCATION\n");
+
+    if (workers_.size() < next_core_num_) {
+      next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
+      // Add more workers
+      for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
+          workers_.emplace_back(&Agora::Worker, this, core_i);
+          std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
+      }
+    } else {
+      // remove cores
+      next_core_num_ = std::max(next_core_num_, (size_t)2); // minimum core number?
+      for (size_t core_i = workers_.size(); core_i > next_core_num_; core_i--) {
+        // workers_.back()->status = false;
+        workers_.pop_back();
+        std::printf("[ALERT] REMOVING CORE TO %ld\n", core_i);
+      }
+    }
+
+    std::printf("[ALERT] ALLOCATION IS COMPLETE!\n");
+    std::printf("=================================\n");
+  // }
 }
 
 void Agora::UpdateRanConfig(RanConfig rc) {
