@@ -25,6 +25,13 @@ RUN apt-get install -y vim gdb
 # Required for downloading and building the source packages below
 RUN apt-get -y install -y g++ cmake make wget git
 
+# Need gcc-9
+RUN ( \
+    apt-get -y install -y software-properties-common; \
+    add-apt-repository -y ppa:ubuntu-toolchain-r/test; \
+    apt update && apt-get -y install -y -y gcc-9 libstdc++6; \
+)
+
 # Needed to build and run Agora. 
 # Currently I'm not sure if *all* of these are needed to *run* Agora, but some are. 
 RUN apt-get -y install -y \
@@ -32,14 +39,12 @@ RUN apt-get -y install -y \
     liblapack-dev \
     libblas-dev \
     libboost-all-dev \
-    # doxygen \
-    nlohmann-json-dev \
+    doxygen \
     python-numpy \
     python-pyqt5 \
     libnuma-dev \
     libpython-dev \
     swig
-
 
 # Install gtest and gflags
 RUN apt-get install -y libgtest-dev
@@ -47,23 +52,37 @@ RUN (cd /usr/src/gtest && cmake . && make && mv libg* /usr/lib/)
 
 
 # Build and install armadillo
-RUN wget http://sourceforge.net/projects/arma/files/armadillo-9.300.2.tar.xz
-RUN tar xf armadillo-9.300.2.tar.xz
-RUN (cd armadillo-9.300.2; cmake .; make -j8; make install)
+# RUN wget http://sourceforge.net/projects/arma/files/armadillo-9.300.2.tar.xz
+# RUN tar xf armadillo-9.300.2.tar.xz
+# RUN (cd armadillo-9.300.2; cmake .; make -j8; make install)
+RUN wget sourceforge.net/projects/arma/files/armadillo-10.7.5.tar.xz
+RUN tar xf armadillo-10.7.5.tar.xz
+RUN (cd armadillo-10.7.5; cmake .; make -j8; make install)
 RUN rm -rf armadillo*
 
+# Install nlohmann json-dev from the GitHub repo
+RUN ( \
+    cd `mktemp -d`; \
+    git clone --depth=1 https://github.com/nlohmann/json.git; \
+    cd json; \
+    mkdir build; \
+    cd build; \
+    cmake ..; \
+    make -j; \
+    make install; \
+    ldconfig; \
+)
 
 # Set up Intel MKL
-RUN apt-get install -y apt-transport-https ca-certificates
-RUN ( \
-    cd /tmp; \
-    wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB; \
-    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB; \
-    rm GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB; \
-    sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'; \
-)
-RUN apt-get update && apt-get install -y intel-mkl-64bit-2020.0-088
-
+# RUN apt-get install -y apt-transport-https ca-certificates linux-headers-4.15.0-108-generic
+# RUN ( \
+#     cd /tmp; \
+#     wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB; \
+#     apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB; \
+#     rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB; \
+#     sh -c 'echo deb https://apt.repos.intel.com/oneapi all main > /etc/apt/sources.list.d/oneAPI.list'; \
+# )
+# RUN apt-get update && apt-get install -y intel-basekit
 
 # Set up SoapySDR
 RUN ( \
@@ -99,10 +118,10 @@ ENV DEBIAN_FRONTEND teletype
 
 
 # Copy in our relevant build files. ("test" is optional)
-COPY build/   Agora/build/
-COPY data/    Agora/data/
-COPY test/    Agora/test/
-COPY run_*.sh Agora/
+# COPY build/   Agora/build/
+# COPY data/    Agora/data/
+# COPY test/    Agora/test/
+# COPY run_*.sh Agora/
 
 # Copy the FlexRAN files
 COPY FlexRAN-FEC-SDK-19-04/ /opt/
@@ -110,7 +129,8 @@ COPY FlexRAN-FEC-SDK-19-04/ /opt/
 # Set up the intel MKL compiler variables (shell environment vars) so that Agora can run.
 # This is only really needed when logging into the container via a remote bash shell and manually running commands.
 # Note that this will NOT take effect if a docker CMD or kubernetes command is used directly.
-RUN echo "source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh intel64" >> ~/.bashrc
+# RUN echo "source /opt/intel/compilers_and_libraries/linux/bin/compilervars.sh intel64" >> ~/.bashrc
+RUN echo "source /opt/intel/oneapi/setvars.sh" >> ~/.bashrc
 
 
 # Finally, do something, e.g., run Agora.
