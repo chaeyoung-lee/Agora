@@ -63,6 +63,7 @@ Agora::Agora(Config* const cfg)
   }
 
   // Create worker threads
+  active_core_ = std::vector<bool>(sysconf(_SC_NPROCESSORS_ONLN), false);
   CreateThreads();
 
   // Call dynamic core allocation
@@ -856,8 +857,7 @@ void Agora::Worker(int tid) {
   size_t cur_qid = 0;
   size_t empty_queue_itrs = 0;
   bool empty_queue = true;
-  bool status = true; // worker status
-  while (this->config_->Running() == true && status == true) {
+  while (this->config_->Running() == true && active_core_.at(tid) == true) {
     for (size_t i = 0; i < computers_vec.size(); i++) {
       if (computers_vec.at(i)->TryLaunch(*GetConq(events_vec.at(i), cur_qid),
                                          complete_task_queue_[cur_qid],
@@ -882,6 +882,7 @@ void Agora::Worker(int tid) {
       empty_queue = true;
     }
   }
+  std::printf("Agora worker %d exit\n", tid);
   MLPD_SYMBOL("Agora worker %d exit\n", tid);
 }
 
@@ -1001,6 +1002,7 @@ void Agora::CreateThreads() {
   } else {
     MLPD_SYMBOL("Agora: creating %zu workers\n", cfg->WorkerThreadNum());
     for (size_t i = 0; i < cfg->WorkerThreadNum(); i++) {
+      active_core_[i] = true;
       workers_.emplace_back(&Agora::Worker, this, i);
     }
   }
@@ -1012,7 +1014,7 @@ Dynamically (de)allocate workers during runtime, based on configuration.
 void Agora::DynamicCore() {
   // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
     // size_t next_core_num_ = cfg->DynamicCoreNums()[i];
-    size_t next_core_num_ = 40;
+    size_t next_core_num_ = 30;
 
     // Hanging until necessary
     sleep(10);
@@ -1024,6 +1026,13 @@ void Agora::DynamicCore() {
       next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
       // Add more workers
       for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
+          // Add Queue
+          for (size_t j = 0; j < kScheduleQueues; j++) {
+            worker_ptoks_ptr_[core_i][j] =
+                new moodycamel::ProducerToken(complete_task_queue_[j]);
+          }
+
+          active_core_[core_i] = true;
           workers_.emplace_back(&Agora::Worker, this, core_i);
           std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
       }
@@ -1031,8 +1040,12 @@ void Agora::DynamicCore() {
       // remove cores
       next_core_num_ = std::max(next_core_num_, (size_t)2); // minimum core number?
       for (size_t core_i = workers_.size(); core_i > next_core_num_; core_i--) {
-        // workers_.back()->status = false;
-        workers_.pop_back();
+        // Remove Queue
+        // for (size_t j = 0; j < kScheduleQueues; j++) {
+        //   delete worker_ptoks_ptr_[core_i - 1][j];
+        // }
+        active_core_[core_i - 1] = false;
+        // workers_.pop_back();
         std::printf("[ALERT] REMOVING CORE TO %ld\n", core_i);
       }
     }

@@ -171,7 +171,9 @@ class Agora {
   // Handle for the MAC thread
   std::thread mac_std_thread_;
   std::vector<std::thread> workers_;
+
   std::thread dynamic_core_thread_;
+  std::vector<bool> active_core_;
 
   std::unique_ptr<Stats> stats_;
   std::unique_ptr<PhyStats> phy_stats_;
