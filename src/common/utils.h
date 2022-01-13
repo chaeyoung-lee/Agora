@@ -54,6 +54,9 @@ int PinToCore(int core_id);
 void PinToCoreWithOffset(ThreadType thread, int base_core_offset, int thread_id,
                          bool verbose = false);
 
+/* Remove core from core_list at (core_id + core_offset) */
+void RemoveCoreFromList(int core_id, int core_offset);
+
 void PrintCoreAssignmentSummary();
 
 template <class T>

@@ -1008,23 +1008,20 @@ void Agora::CreateThreads() {
   }
 }
 
-/*
-Dynamically (de)allocate workers during runtime, based on configuration.
-*/
 void Agora::DynamicCore() {
   // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
     // size_t next_core_num_ = cfg->DynamicCoreNums()[i];
-    size_t next_core_num_ = 30;
+    size_t next_core_num_ = 15;
 
     // Hanging until necessary
-    sleep(10);
+    sleep(5);
 
     std::printf("=================================\n");
     std::printf("[ALERT] DYNAMIC CORE ALLOCATION\n");
 
     if (workers_.size() < next_core_num_) {
       next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
-      // Add more workers
+      // Add workers
       for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
           // Add Queue
           for (size_t j = 0; j < kScheduleQueues; j++) {
@@ -1037,15 +1034,15 @@ void Agora::DynamicCore() {
           std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
       }
     } else {
-      // remove cores
+      // Remove workers
       next_core_num_ = std::max(next_core_num_, (size_t)2); // minimum core number?
       for (size_t core_i = workers_.size(); core_i > next_core_num_; core_i--) {
         // Remove Queue
-        // for (size_t j = 0; j < kScheduleQueues; j++) {
-        //   delete worker_ptoks_ptr_[core_i - 1][j];
-        // }
+        for (size_t j = 0; j < kScheduleQueues; j++) {
+          delete worker_ptoks_ptr_[core_i - 1][j];
+        }
         active_core_[core_i - 1] = false;
-        // workers_.pop_back();
+        RemoveCoreFromList(core_i - 1, base_worker_core_offset_);
         std::printf("[ALERT] REMOVING CORE TO %ld\n", core_i);
       }
     }
@@ -1393,9 +1390,12 @@ void Agora::FreeQueues() {
     delete tx_ptoks_ptr_[i];
   }
 
-  for (size_t i = 0; i < config_->WorkerThreadNum(); i++) {
-    for (size_t j = 0; j < kScheduleQueues; j++) {
-      delete worker_ptoks_ptr_[i][j];
+  // for (size_t i = 0; i < config_->WorkerThreadNum(); i++) {
+  for (size_t i = 0; i < active_core_.size(); i++) {
+    if (active_core_.at(i) == true) {
+      for (size_t j = 0; j < kScheduleQueues; j++) {
+        delete worker_ptoks_ptr_[i][j];
+      }
     }
   }
 }

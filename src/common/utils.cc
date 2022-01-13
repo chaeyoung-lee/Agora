@@ -196,6 +196,25 @@ void PinToCoreWithOffset(ThreadType thread_type, int core_offset, int thread_id,
   }
 }
 
+void RemoveCoreFromList(int core_id, int core_offset) {
+  if (core_list.back().requested_core_ == (size_t)(core_id + core_offset)) {
+    core_list.pop_back();
+    // std::printf("CORE REMOVED FROM MAP at %d with offset %d!\n", core_id, core_offset);
+  }
+
+  // bool removed = false;
+  // for (auto& iter : core_list) {
+  //   if (iter.requested_core_ == core_id + core_offset) {
+  //     core_list.remove(iter);
+  //     removed = true;
+  //     break;
+  //   }
+  // }
+  // if (!removed) {
+  //   std::printf("Requested core removal at %d with offset %d does not exist in the list.\n", core_id, core_offset);
+  // }
+} 
+
 std::vector<size_t> Utils::StrToChannels(const std::string& channel) {
   std::vector<size_t> channels;
   if (channel == "A") {

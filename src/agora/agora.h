@@ -91,7 +91,8 @@ class Agora {
 
   void CreateThreads();  /// Launch worker threads
 
-  void DynamicCore();   /// Dynamic core allocation
+  /// Dynamically (de)allocate workers during runtime, based on configuration.
+  void DynamicCore();
 
   void InitializeQueues();
   void InitializeUplinkBuffers();
