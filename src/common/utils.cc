@@ -58,7 +58,7 @@ static void PrintCoreList(const std::list<CoreInfo>& clist) {
   std::printf("          CORE LIST SUMMARY      \n");
   std::printf("=================================\n");
   std::printf("Total Number of Cores: %d : %d \n", numa_max_cpus, system_cpus);
-  for (auto& iter : clist) {
+  for (const auto& iter : clist) {
     std::printf(
         "|| Core ID: %2zu || Requested: %2zu || ThreadType: %-16s || "
         "ThreadId: %zu \n",
@@ -132,9 +132,9 @@ size_t GetPhysicalCoreId(size_t core_id) {
   return core;
 }
 
-int PinToCore(int core_id) {
+int PinToCore(size_t core_id) {
   int num_cores = sysconf(_SC_NPROCESSORS_ONLN);
-  if ((core_id < 0) || (core_id >= num_cores)) {
+  if (static_cast<int>(core_id) >= num_cores) {
     return -1;
   }
 
@@ -146,8 +146,8 @@ int PinToCore(int core_id) {
   return pthread_setaffinity_np(current_thread, sizeof(cpu_set_t), &cpuset);
 }
 
-void PinToCoreWithOffset(ThreadType thread_type, int core_offset, int thread_id,
-                         bool verbose) {
+void PinToCoreWithOffset(ThreadType thread_type, size_t core_offset,
+                         size_t thread_id, bool allow_reuse, bool verbose) {
   std::scoped_lock lock(pin_core_mutex);
 
   if (kEnableThreadPinning == true) {
@@ -159,7 +159,7 @@ void PinToCoreWithOffset(ThreadType thread_type, int core_offset, int thread_id,
 
     size_t assigned_core = GetCoreId(requested_core);
 
-    if (kEnableCoreReuse == false) {
+    if (allow_reuse == false) {
       // Check to see if core has already been assigned
       //(faster search is possible here but isn't necessary)
       for (auto& assigned : core_list) {
@@ -175,7 +175,7 @@ void PinToCoreWithOffset(ThreadType thread_type, int core_offset, int thread_id,
     if (PinToCore(assigned_core) != 0) {
       std::fprintf(
           stderr,
-          "%s thread %d: failed to pin to core %zu. Exiting. This can happen "
+          "%s thread %zu: failed to pin to core %zu. Exiting. This can happen "
           "if the machine has insufficient cores. Set kEnableThreadPinning to "
           "false to run Agora to run despite this - performance will be low.\n",
           ThreadTypeStr(thread_type).c_str(), thread_id, assigned_core);
@@ -188,7 +188,7 @@ void PinToCoreWithOffset(ThreadType thread_type, int core_offset, int thread_id,
 
       core_list.insert(insertion_point, new_assignment);
       if (verbose == true) {
-        std::printf("%s thread %d: pinned to core %zu, requested core %zu \n",
+        std::printf("%s thread %zu: pinned to core %zu, requested core %zu \n",
                     ThreadTypeStr(thread_type).c_str(), thread_id,
                     assigned_core, requested_core);
       }
@@ -385,7 +385,7 @@ void Utils::LoadTddConfig(const std::string& filename, std::string& jconfig) {
   }
 
   else {
-    std::printf("Unable to open config file %s\n", filename.c_str());
+    std::printf("Unable to open config file \"%s\"\n", filename.c_str());
   }
 }
 
@@ -416,10 +416,11 @@ void Utils::SaveMat(arma::cx_fmat c, const std::string& filename,
                     const std::string& ss, const bool append) {
   std::stringstream so;
   std::ofstream of;
-  if (append == true)
+  if (append == true) {
     of.open(filename, std::ios_base::app);
-  else
+  } else {
     of.open(filename);
+  }
   so << ss << " = [";
   for (size_t i = 0; i < c.n_cols; i++) {
     so << "[";
@@ -455,10 +456,11 @@ void Utils::SaveVec(arma::cx_fvec c, const std::string& filename,
                     const std::string& ss, const bool append) {
   std::stringstream so;
   std::ofstream of;
-  if (append == true)
+  if (append == true) {
     of.open(filename, std::ios_base::app);
-  else
+  } else {
     of.open(filename);
+  }
   so << ss << " = [";
   for (size_t j = 0; j < c.size(); j++) {
     so << std::fixed << std::setw(5) << std::setprecision(3) << c.at(j).real()

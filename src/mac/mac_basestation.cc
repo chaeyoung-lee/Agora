@@ -44,8 +44,8 @@ int main(int argc, char* argv[]) {
   std::string filename = FLAGS_conf_file;
   std::string data_filename = FLAGS_data_file;
 
-  auto frame_start = new double[kNumStatsFrames];
-  auto frame_end = new double[kNumStatsFrames];
+  auto* frame_start = new double[kNumStatsFrames];
+  auto* frame_end = new double[kNumStatsFrames];
 
   int ret = EXIT_FAILURE;
   {
@@ -53,12 +53,16 @@ int main(int argc, char* argv[]) {
     cfg->GenData();
 
     // Generate pattern file for testing
-    if (data_filename == "") {
+    if (data_filename.empty()) {
       std::ofstream create_file;
       data_filename = TOSTRING(PROJECT_DIRECTORY) +
                       std::string("/data/dl_increment_file.bin");
-      std::printf("Generating test binary file for basestation downlink%s\n",
-                  data_filename.c_str());
+      std::printf(
+          "Generating test binary file for basestation downlink %s.  Frames: "
+          "%zu, Packets: %zu, Packet Size: %zu\n",
+          data_filename.c_str(), cfg->FramesToTest(),
+          cfg->MacPacketsPerframe(Direction::kDownlink),
+          cfg->MacPayloadMaxLength(Direction::kDownlink));
 
       create_file.open(
           data_filename,
@@ -66,17 +70,18 @@ int main(int argc, char* argv[]) {
       assert(create_file.is_open() == true);
 
       std::vector<char> mac_data;
-      mac_data.resize(cfg->MacPayloadMaxLength());
+      mac_data.resize(cfg->MacPayloadMaxLength(Direction::kDownlink));
 
-      for (size_t i = 0;
-           i < (cfg->FramesToTest() * cfg->DlMacPacketsPerframe()); i++) {
+      for (size_t i = 0; i < (cfg->FramesToTest() *
+                              cfg->MacPacketsPerframe(Direction::kDownlink));
+           i++) {
         std::fill(mac_data.begin(), mac_data.end(), (char)i);
         create_file.write(mac_data.data(), mac_data.size());
       }
       create_file.close();
     }
 
-    PinToCoreWithOffset(ThreadType::kMaster, FLAGS_core_offset, 0);
+    PinToCoreWithOffset(ThreadType::kMaster, FLAGS_core_offset, 0, true);
 
     try {
       SignalHandler signal_handler;
@@ -84,7 +89,7 @@ int main(int argc, char* argv[]) {
       std::unique_ptr<MacReceiver> receiver;
       std::vector<std::thread> rx_threads;
       //+1 for main thread a
-      const size_t kNumTotalSenderThreads =
+      const size_t num_total_sender_threads =
           FLAGS_num_sender_worker_threads + FLAGS_num_sender_update_threads;
       size_t thread_start = FLAGS_core_offset;
 
@@ -92,26 +97,30 @@ int main(int argc, char* argv[]) {
       signal_handler.SetupSignalHandlers();
       if (cfg->Frame().NumDlDataSyms() > 0) {
         sender = std::make_unique<MacSender>(
-            cfg.get(), data_filename, cfg->DlMacPacketsPerframe(),
-            cfg->BsServerAddr(), cfg->BsMacRxPort(),
+            cfg.get(), data_filename,
+            cfg->MacPacketLength(Direction::kDownlink),
+            cfg->MacPayloadMaxLength(Direction::kDownlink),
+            cfg->MacPacketsPerframe(Direction::kDownlink), cfg->BsServerAddr(),
+            cfg->BsMacRxPort(),
             std::bind(&FrameStats::GetDLDataSymbol, cfg->Frame(),
                       std::placeholders::_1),
             thread_start, FLAGS_num_sender_worker_threads,
             FLAGS_num_sender_update_threads, FLAGS_frame_duration, 0,
             FLAGS_enable_slow_start, true);
-        thread_start += kNumTotalSenderThreads;
-        sender->StartTXfromMain(frame_start, frame_end);
+        thread_start += num_total_sender_threads;
+        sender->StartTxfromMain(frame_start, frame_end);
       }
       if (cfg->Frame().NumUlDataSyms() > 0) {
-        if ((FLAGS_fwd_udp_port != 0) && (FLAGS_fwd_udp_address != "")) {
+        if ((FLAGS_fwd_udp_port != 0) && (!FLAGS_fwd_udp_address.empty())) {
           receiver = std::make_unique<MacReceiver>(
-              cfg.get(), cfg->UlMacDataBytesNumPerframe(), cfg->BsServerAddr(),
-              cfg->BsMacTxPort(), FLAGS_fwd_udp_address, FLAGS_fwd_udp_port,
-              FLAGS_num_receiver_threads, thread_start);
+              cfg.get(), cfg->MacDataBytesNumPerframe(Direction::kDownlink),
+              cfg->BsServerAddr(), cfg->BsMacTxPort(), FLAGS_fwd_udp_address,
+              FLAGS_fwd_udp_port, FLAGS_num_receiver_threads, thread_start);
         } else {
           receiver = std::make_unique<MacReceiver>(
-              cfg.get(), cfg->UlMacDataBytesNumPerframe(), cfg->BsServerAddr(),
-              cfg->BsMacTxPort(), FLAGS_num_receiver_threads, thread_start);
+              cfg.get(), cfg->MacDataBytesNumPerframe(Direction::kDownlink),
+              cfg->BsServerAddr(), cfg->BsMacTxPort(),
+              FLAGS_num_receiver_threads, thread_start);
         }
         rx_threads = receiver->StartRecv();
       }
