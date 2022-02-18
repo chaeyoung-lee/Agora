@@ -63,11 +63,12 @@ Agora::Agora(Config* const cfg)
   }
 
   // Create worker threads
-  active_core_ = std::vector<bool>(sysconf(_SC_NPROCESSORS_ONLN), false);
+  active_core_ = std::vector<bool>(100, false); // sysconf(_SC_NPROCESSORS_ONLN), TODO: vector size limit? dynamic allocation?
+  std::printf("[CHAEYOUNG DEBUGGING] available cores: %ld\n\n", cfg->WorkerThreadNum());
   CreateThreads();
 
   // Call dynamic core allocation
-  dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
+  // dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
 
   MLPD_INFO(
       "Master thread core %zu, TX/RX thread cores %zu--%zu, worker thread "
@@ -91,7 +92,7 @@ Agora::~Agora() {
   FreeDownlinkBuffers();
 
   // Dynamic core allocation
-  dynamic_core_thread_.join();
+  // dynamic_core_thread_.join();
 
   stats_.reset();
   phy_stats_.reset();

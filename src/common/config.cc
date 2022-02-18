@@ -369,8 +369,9 @@ Config::Config(const std::string& jsonfile)
   // Agora configurations
   frames_to_test_ = tdd_conf.value("frames_to_test", 9600);
   core_offset_ = tdd_conf.value("core_offset", 0);
-  worker_thread_num_ = tdd_conf.value("worker_thread_num", 25);
+  
   socket_thread_num_ = tdd_conf.value("socket_thread_num", 4);
+  worker_thread_num_ = 25; // GetAvailableCores(core_offset_, socket_thread_num_); // tdd_conf.value("worker_thread_num", 25);
   fft_thread_num_ = tdd_conf.value("fft_thread_num", 5);
   demul_thread_num_ = tdd_conf.value("demul_thread_num", 5);
   decode_thread_num_ = tdd_conf.value("decode_thread_num", 10);

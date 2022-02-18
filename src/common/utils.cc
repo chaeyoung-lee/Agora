@@ -215,6 +215,16 @@ void RemoveCoreFromList(int core_id, int core_offset) {
   // }
 } 
 
+int GetAvailableCores(int core_offset, int socket_thread_num) {
+  std::ifstream file("/sys/fs/cgroup/cpuset/cpuset.cpus");
+  std::string s;
+  std::getline(file, s);
+
+  int start_core = stoi(s.substr(0, s.find("-")));
+  int end_core = stoi(s.substr(s.find("-") + 1));
+  return end_core - start_core - 7 - core_offset - socket_thread_num; // remove master core, tx/rx core
+}
+
 std::vector<size_t> Utils::StrToChannels(const std::string& channel) {
   std::vector<size_t> channels;
   if (channel == "A") {

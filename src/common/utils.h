@@ -57,6 +57,9 @@ void PinToCoreWithOffset(ThreadType thread, int base_core_offset, int thread_id,
 /* Remove core from core_list at (core_id + core_offset) */
 void RemoveCoreFromList(int core_id, int core_offset);
 
+/* Get the number of available cores in the machine */
+int GetAvailableCores(int core_offset, int socket_thread_num);
+
 void PrintCoreAssignmentSummary();
 
 template <class T>
