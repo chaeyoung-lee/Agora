@@ -108,9 +108,7 @@ void SetCpuLayoutOnNumaNodes(bool verbose,
             std::printf("%zu ", j);
           }
           // If core id is not in the excluded list
-          if (!dynamic_core_allocation && (std::find(cores_to_exclude.begin(), cores_to_exclude.end(), j) == cores_to_exclude.end())) {
-              cpu_layout.emplace_back(j);
-          } else if (dynamic_core_allocation && start_core <= j && j <= end_core) {
+          if (start_core <= j && j <= end_core && (std::find(cores_to_exclude.begin(), cores_to_exclude.end(), j) == cores_to_exclude.end())) {
               cpu_layout.emplace_back(j);
           }
         }

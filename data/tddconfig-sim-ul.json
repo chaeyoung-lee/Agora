@@ -16,6 +16,7 @@
     "freq_orthogonal_pilot": true,
     /* Compute configuration */
     "core_offset": 4,
+    "dynamic_core": true,
     "exclude_cores": [
         0
     ],
