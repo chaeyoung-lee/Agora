@@ -43,22 +43,23 @@
 // Default argument is to exclude core 0 from the list
 void SetCpuLayoutOnNumaNodes(
     bool verbose = false,
-    const std::vector<size_t>& cores_to_exclude = std::vector<size_t>(1, 0));
+    const std::vector<size_t>& cores_to_exclude = std::vector<size_t>(1, 0),
+    bool dynamic_core_allocation = false);
 
 size_t GetPhysicalCoreId(size_t core_id);
 
 /* Pin this thread to core with global index = core_id */
-int PinToCore(int core_id);
+int PinToCore(size_t core_id);
 
 /* Pin this thread to core (base_core_offset + thread_id) */
-void PinToCoreWithOffset(ThreadType thread, int base_core_offset, int thread_id,
+void PinToCoreWithOffset(ThreadType thread, size_t base_core_offset, size_t thread_id, bool allow_reuse = false,
                          bool verbose = false);
 
 /* Remove core from core_list at (core_id + core_offset) */
 void RemoveCoreFromList(int core_id, int core_offset);
 
 /* Get the number of available cores in the machine */
-int GetAvailableCores(int core_offset, int socket_thread_num);
+size_t GetAvailableCores();
 
 void PrintCoreAssignmentSummary();
 
@@ -67,24 +68,6 @@ struct EventHandlerContext {
   T* obj_ptr_;
   int id_;
 };
-
-template <class C, void* (C::*run_thread)(size_t)>
-void* PthreadFunWrapper(void* context) {
-  auto* eh_context = static_cast<EventHandlerContext<C>*>(context);
-  C* obj = reinterpret_cast<C*>(eh_context->obj_ptr_);
-  int id = eh_context->id_;
-  delete eh_context;
-  return (obj->*run_thread)(id);
-}
-
-template <class C, void (C::*run_thread)(size_t)>
-void PthreadFunWrapper(void* context) {
-  auto* eh_context = static_cast<EventHandlerContext<C>*>(context);
-  C* obj = reinterpret_cast<C*>(eh_context->obj_ptr_);
-  int id = eh_context->id_;
-  delete eh_context;
-  return (obj->*run_thread)(id);
-}
 
 class Utils {
  public:

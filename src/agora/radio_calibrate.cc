@@ -383,7 +383,7 @@ void RadioConfig::DciqCalibrationProc(size_t channel) {
   double tone_bb_freq = sample_rate / 7;
   size_t radio_size = cfg_->NumRadios();
 
-  size_t reference_radio = cfg_->RefAnt() / cfg_->NumChannels();
+  size_t reference_radio = cfg_->RefRadio(0);
   SoapySDR::Device* ref_dev = ba_stn_[reference_radio];
 
   /*
@@ -537,9 +537,9 @@ void RadioConfig::DciqCalibrationProc(size_t channel) {
 void RadioConfig::AdjustDelays(std::vector<int> offset) {
   // adjust all trigger delay for all radios
   // with respect to the first non-ref radio
-  size_t ref_offset = cfg_->RefAnt() == 0 ? 1 : 0;
+  size_t ref_offset = cfg_->RefAnt(0) == 0 ? 1 : 0;
   for (size_t i = 0; i < offset.size(); i++) {
-    if (i == cfg_->RefAnt()) {
+    if (i == cfg_->RefAnt(0)) {
       continue;
     }
     int delta = offset[ref_offset] - offset[i];
@@ -557,6 +557,8 @@ void RadioConfig::AdjustDelays(std::vector<int> offset) {
 }
 
 bool RadioConfig::InitialCalib(bool sample_adjust) {
+  static constexpr size_t kRxTimeoutUs = 1000000;
+  static constexpr size_t kTxTimeoutUs = 1000000;
   // excludes zero padding
   size_t seq_len = cfg_->PilotCf32().size();
   size_t read_len = cfg_->PilotCi16().size();
@@ -578,8 +580,9 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
   std::vector<std::vector<std::complex<int16_t>>> buff;
   // int ant = cfg_->num_channels();
   size_t m = cfg_->BsAntNum();
+  // TODO: Fix for multi-cell
   size_t r = cfg_->NumRadios();
-  size_t ref = cfg_->RefAnt() / cfg_->NumChannels();
+  size_t ref = cfg_->RefRadio(0);
   // allocate for uplink and downlink directions
   buff.resize(2 * m);
   for (size_t i = 0; i < 2 * m; i++) {
@@ -613,7 +616,9 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
       if (good_csi == false) {
         break;
       }
-      if (i == ref) continue;
+      if (i == ref) {
+        continue;
+      }
 
       // Send a separate pilot from each antenna
       for (size_t ch = 0; ch < cfg_->NumChannels(); ch++) {
@@ -624,32 +629,33 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           bad_read = false;
           int ret = ba_stn_.at(i)->writeStream(
               this->tx_streams_.at(i), ch > 0 ? txbuff1.data() : txbuff0.data(),
-              read_len, tx_flags, tx_time, 1000000);
+              read_len, tx_flags, tx_time, kTxTimeoutUs);
           if (ret < (int)read_len) {
             std::cout << "bad write\n";
           }
 
-          int rx_flags = SOAPY_SDR_WAIT_TRIGGER | SOAPY_SDR_END_BURST;
-          ret = ba_stn_.at(ref)->activateStream(this->rx_streams_.at(ref),
-                                                rx_flags, rx_time, read_len);
+          int rx_flags_activate = SOAPY_SDR_WAIT_TRIGGER | SOAPY_SDR_END_BURST;
+          ret = ba_stn_.at(ref)->activateStream(
+              this->rx_streams_.at(ref), rx_flags_activate, rx_time, read_len);
 
           Go();  // trigger
 
-          int flags = 0;
+          int rx_flags = SOAPY_SDR_END_BURST;
           std::vector<void*> rxbuff0(2);
           rxbuff0.at(0) = buff.at(cfg_->NumChannels() * i + ch).data();
           if (cfg_->NumChannels() == 2) {
             rxbuff0.at(1) = dummybuff.data();
           }
           ret = ba_stn_.at(ref)->readStream(this->rx_streams_.at(ref),
-                                            rxbuff0.data(), read_len, flags,
-                                            rx_time, 1000000);
+                                            rxbuff0.data(), read_len, rx_flags,
+                                            rx_time, kRxTimeoutUs);
           if (ret < (int)read_len) {
             std::cout << "bad read (" << ret << ") at node " << ref
                       << " from node " << i << std::endl;
             retry++;
-          } else
+          } else {
             break;
+          }
         }
         if (bad_read) {
           good_csi = false;
@@ -666,7 +672,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
         bad_read = false;
         int ret = ba_stn_.at(ref)->writeStream(this->tx_streams_.at(ref),
                                                txbuff0.data(), read_len,
-                                               tx_flags, tx_time, 1000000);
+                                               tx_flags, tx_time, kTxTimeoutUs);
         if (ret < (int)read_len) {
           std::cout << "bad write\n";
         }
@@ -681,20 +687,22 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
 
         Go();  // Trigger
 
-        int flags = 0;
+        int rx_flags = SOAPY_SDR_END_BURST;
         for (size_t i = 0; i < r; i++) {
           if (good_csi == false) {
             break;
           }
-          if (i == ref) continue;
+          if (i == ref) {
+            continue;
+          }
           std::vector<void*> rxbuff(2);
           rxbuff.at(0) = buff.at(m + cfg_->NumChannels() * i).data();
           if (cfg_->NumChannels() == 2) {
             rxbuff.at(1) = buff.at(m + cfg_->NumChannels() * i + 1).data();
           }
-          ret =
-              ba_stn_.at(i)->readStream(this->rx_streams_.at(i), rxbuff.data(),
-                                        read_len, flags, rx_time, 1000000);
+          ret = ba_stn_.at(i)->readStream(this->rx_streams_.at(i),
+                                          rxbuff.data(), read_len, rx_flags,
+                                          rx_time, kRxTimeoutUs);
           if (ret < (int)read_len) {
             bad_read = true;
             std::cout << "Bad read (" << ret << ") at node " << i
@@ -703,8 +711,9 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
         }
         if (bad_read) {
           retry++;
-        } else
+        } else {
           break;
+        }
       }
       if (bad_read) {
         good_csi = false;
@@ -716,7 +725,6 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
       noise_buff.resize(m);
       for (size_t i = 0; i < r; i++) {
         int rx_flags = SOAPY_SDR_END_BURST;
-        int flags = 0;
         int ret = ba_stn_.at(i)->activateStream(this->rx_streams_.at(i),
                                                 rx_flags, rx_time, read_len);
         std::vector<void*> rxbuff(2);
@@ -728,7 +736,8 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           rxbuff.at(1) = noise_buff.at(cfg_->NumChannels() * i + 1).data();
         }
         ret = ba_stn_.at(i)->readStream(this->rx_streams_.at(i), rxbuff.data(),
-                                        read_len, flags, rx_time, 1000000);
+                                        read_len, rx_flags, rx_time,
+                                        kRxTimeoutUs);
         if (ret < (int)read_len) {
           good_csi = false;
           std::cout << "bad noise read (" << ret << ") at node " << i
@@ -805,15 +814,13 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
                       << "/" << peak_dn << std::endl;
             if (kVerboseCalibration) {
               std::cout << "dn(" << i << ")=";
-              for (size_t s = 0; s < dn.at(i).size(); s++) {
-                std::cout << dn.at(i).at(s).real() << "+1j*"
-                          << dn.at(i).at(s).imag() << " ";
+              for (auto& s : dn.at(i)) {
+                std::cout << s.real() << "+1j*" << s.imag() << " ";
               }
               std::cout << std::endl;
               std::cout << "up(" << i << ")=";
-              for (size_t s = 0; s < up.at(i).size(); s++) {
-                std::cout << up.at(i).at(s).real() << "+1j*"
-                          << up.at(i).at(s).imag() << " ";
+              for (auto& s : up.at(i)) {
+                std::cout << s.real() << "+1j*" << s.imag() << " ";
               }
               std::cout << std::endl;
             }
@@ -861,7 +868,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
         for (size_t q = 0; q < cfg_->OfdmCaNum(); q++) {
           sig_dn += std::pow(std::abs(dn.at(i).at(q + start_dn.at(i))), 2);
           noise_dn += std::pow(
-              std::abs(noise.at(cfg_->RefAnt()).at(q + start_dn.at(i))), 2);
+              std::abs(noise.at(cfg_->RefAnt(0)).at(q + start_dn.at(i))), 2);
         }
         ss0 << 10 * std::log10(sig_dn / noise_dn) << " ";
         if (kReciprocalCalibPlot) {
@@ -877,7 +884,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           plt::plot(up_i);
           // plt::xlim(0, read_len);
           plt::ylim(-1, 1);
-          plt::title("ant " + std::to_string(cfg_->RefAnt()) +
+          plt::title("ant " + std::to_string(cfg_->RefAnt(0)) +
                      " (ref) to ant " + std::to_string(i));
           plt::legend();
           plt::save("up_" + std::to_string(i) + ".png");
@@ -887,7 +894,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
           // plt::xlim(0, read_len);
           plt::ylim(-1, 1);
           plt::title("ant " + std::to_string(i) + " to ant (ref)" +
-                     std::to_string(cfg_->RefAnt()));
+                     std::to_string(cfg_->RefAnt(0)));
           plt::legend();
           plt::save("dn_" + std::to_string(i) + ".png");
         }
@@ -930,10 +937,10 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
 
       for (size_t i = 0; i < m; i++) {
         size_t id = i;
-        if (cfg_->ExternalRefNode() && i / cfg_->NumChannels() == ref) {
+        if (cfg_->ExternalRefNode(0) && i / cfg_->NumChannels() == ref) {
           continue;
         }
-        if (cfg_->ExternalRefNode() && (i / cfg_->NumChannels() > ref)) {
+        if (cfg_->ExternalRefNode(0) && (i / cfg_->NumChannels() > ref)) {
           id = i - cfg_->NumChannels();
         }
         if (kVerboseCalibration) {  // print time-domain data
@@ -963,7 +970,7 @@ bool RadioConfig::InitialCalib(bool sample_adjust) {
 
         auto dn_f = CommsLib::FFT(dn_ofdm, cfg_->OfdmCaNum());
         auto up_f = CommsLib::FFT(up_ofdm, cfg_->OfdmCaNum());
-        if (cfg_->ExternalRefNode() == false &&
+        if (cfg_->ExternalRefNode(0) == false &&
             i / cfg_->NumChannels() == ref) {
           for (size_t j = 0; j < cfg_->OfdmCaNum(); j++) {
             dn_f[j] = std::complex<float>(1, 0);

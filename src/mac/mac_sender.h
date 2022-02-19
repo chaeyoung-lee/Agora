@@ -42,7 +42,8 @@ class MacSender {
    * @param enable_slow_start If 1, the sender initially sends frames in a
    * duration larger than the TTI
    */
-  MacSender(Config* cfg, std::string& data_filename, size_t packets_per_frame,
+  MacSender(Config* cfg, std::string& data_filename, size_t mac_packet_length,
+            size_t mac_payload_max_length, size_t packets_per_frame,
             std::string server_address, size_t server_rx_port,
             std::function<size_t(size_t)> get_data_symbol_id,
             size_t core_offset = 30, size_t worker_thread_num = 1,
@@ -55,7 +56,7 @@ class MacSender {
 
   // in_frame_start and in_frame_end must have space for at least
   // kNumStatsFrames entries
-  void StartTXfromMain(double* in_frame_start, double* in_frame_end);
+  void StartTxfromMain(double* in_frame_start, double* in_frame_end);
 
  private:
   void* MasterThread(size_t tid);
@@ -69,7 +70,7 @@ class MacSender {
   // Launch threads to run worker with thread IDs from tid_start to tid_end
   void CreateWorkerThreads(size_t num_workers);
 
-  void UpdateTxBuffer(MacDataReceiver* video, gen_tag_t tag);
+  void UpdateTxBuffer(MacDataReceiver* data_source, gen_tag_t tag);
   void WriteStatsToFile(size_t tx_frame_count) const;
 
   void ScheduleFrame(size_t frame);
@@ -119,10 +120,13 @@ class MacSender {
   size_t tx_buffer_pkt_offset_;
   std::string data_filename_;
 
+  size_t mac_packet_length_;
+  size_t mac_payload_max_length_;
   size_t packets_per_frame_;
   const std::string server_address_;
   const size_t server_rx_port_;
   std::function<size_t(size_t)> get_data_symbol_id_;
+  const bool has_master_thread_;
 };
 
 #endif  // MAC_SENDER_H_

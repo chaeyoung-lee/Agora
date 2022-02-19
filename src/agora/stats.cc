@@ -362,8 +362,8 @@ void Stats::PrintSummary() {
       double encode_frames =
           (static_cast<double>(
               num_tasks.at(static_cast<size_t>(DoerType::kEncode)))) /
-          (this->config_->LdpcConfig().NumBlocksInSymbol() *
-           this->config_->UeNum() * this->config_->Frame().NumDLSyms());
+          (this->config_->LdpcConfig(Direction::kDownlink).NumBlocksInSymbol() *
+           this->config_->UeAntNum() * this->config_->Frame().NumDLSyms());
       std::printf("Downlink totals (tasks, frames): ");
       std::printf("CSI (%zu, %.2f), ",
                   num_tasks.at(static_cast<size_t>(DoerType::kCSI)),
@@ -394,8 +394,8 @@ void Stats::PrintSummary() {
       double decode_frames =
           (static_cast<double>(
               num_tasks.at(static_cast<size_t>(DoerType::kDecode)))) /
-          (this->config_->LdpcConfig().NumBlocksInSymbol() *
-           this->config_->UeNum() * this->config_->Frame().NumULSyms());
+          (this->config_->LdpcConfig(Direction::kUplink).NumBlocksInSymbol() *
+           this->config_->UeAntNum() * this->config_->Frame().NumULSyms());
       std::printf("Uplink totals (tasks, frames): ");
       std::printf("CSI (%zu, %.2f), ",
                   num_tasks.at(static_cast<size_t>(DoerType::kCSI)),

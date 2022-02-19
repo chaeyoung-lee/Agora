@@ -14,6 +14,7 @@ static constexpr size_t kMaxTestNum = 100;
 static constexpr size_t kMaxItrNum = (1 << 30);
 static constexpr size_t kModTestNum = 3;
 static constexpr size_t kModBitsNums[kModTestNum] = {4, 6, 4};
+static constexpr double kCodeRate[kModTestNum] = {0.333, 0.333, 0.666};
 static constexpr size_t kFrameOffsets[kModTestNum] = {0, 20, 30};
 // A spinning barrier to synchronize the start of worker threads
 static std::atomic<size_t> num_workers_ready_atomic;
@@ -28,7 +29,10 @@ void MasterToWorkerDynamicMaster(
   }
 
   for (size_t bs_ant_idx = 0; bs_ant_idx < kModTestNum; bs_ant_idx++) {
-    cfg->UpdateModCfgs(kModBitsNums[bs_ant_idx]);
+    nlohmann::json msc_params = cfg->MCSParams(Direction::kUplink);
+    msc_params["modulation"] = MapModToStr(kModBitsNums[bs_ant_idx]);
+    msc_params["code_rate"] = kCodeRate[bs_ant_idx];
+    cfg->UpdateUlMCS(msc_params);
     for (size_t i = 0; i < kMaxTestNum; i++) {
       uint32_t frame_id =
           i / (cfg->DemulEventsPerSymbol() * cfg->Frame().NumULSyms()) +
@@ -95,7 +99,8 @@ void MasterToWorkerDynamicWorker(
                  cur_frame_id - kFrameOffsets[2] <= max_frame_id_wo_offset) {
         frame_offset_id = 2;
       }
-      ASSERT_EQ(cfg->ModOrderBits(), kModBitsNums[frame_offset_id]);
+      ASSERT_EQ(cfg->ModOrderBits(Direction::kUplink),
+                kModBitsNums[frame_offset_id]);
       EventData resp_event = compute_demul->Launch(req_event.tags_[0]);
       TryEnqueueFallback(&complete_task_queue, ptok, resp_event);
     }
@@ -136,7 +141,7 @@ TEST(TestDemul, VaryingConfig) {
                               cfg->Frame().ClientUlPilotSymbols() * kMaxUEs,
                               Agora_memory::Alignment_t::kAlign64);
   PtrCube<kFrameWnd, kMaxSymbols, kMaxUEs, int8_t> demod_buffers(
-      kFrameWnd, cfg->Frame().NumTotalSyms(), cfg->UeNum(),
+      kFrameWnd, cfg->Frame().NumTotalSyms(), cfg->UeAntNum(),
       kMaxModType * cfg->OfdmDataNum());
   std::printf(
       "Size of [data_buffer, ul_zf_matrices, equal_buffer, "
@@ -153,7 +158,7 @@ TEST(TestDemul, VaryingConfig) {
           kMaxUEs * 1.0f / 1024 / 1024);
 
   auto stats = std::make_unique<Stats>(cfg.get());
-  auto phy_stats = std::make_unique<PhyStats>(cfg.get());
+  auto phy_stats = std::make_unique<PhyStats>(cfg.get(), Direction::kUplink);
 
   std::vector<std::thread> threads;
   threads.emplace_back(MasterToWorkerDynamicMaster, cfg.get(),
