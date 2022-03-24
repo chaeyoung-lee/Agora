@@ -92,7 +92,9 @@ Agora::Agora(Config* const cfg)
   CreateThreads();
 
   // Call dynamic core allocation
-  // dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
+  if (cfg->DynamicCoreAlloc()) {
+    dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
+  }
 
   MLPD_INFO(
       "Master thread core %zu, TX/RX thread cores %zu--%zu, worker thread "
@@ -116,7 +118,9 @@ Agora::~Agora() {
   FreeDownlinkBuffers();
 
   // Dynamic core allocation
-  // dynamic_core_thread_.join();
+  if (cfg->DynamicCoreAlloc()) {
+    dynamic_core_thread_.join();
+  }
 
   stats_.reset();
   phy_stats_.reset();
@@ -1087,6 +1091,7 @@ void Agora::CreateThreads() {
 }
 
 void Agora::DynamicCore() {
+  while (this->config_->Running()) {
   // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
     // size_t next_core_num_ = cfg->DynamicCoreNums()[i];
     size_t next_core_num_ = 15;
@@ -1127,7 +1132,7 @@ void Agora::DynamicCore() {
 
     std::printf("[ALERT] ALLOCATION IS COMPLETE!\n");
     std::printf("=================================\n");
-  // }
+  }
 }
 
 void Agora::UpdateRanConfig(RanConfig rc) {

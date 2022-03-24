@@ -44,8 +44,8 @@ Config::Config(const std::string& jsonfile)
       excluded.at(i) = exclude_cores.at(i);
     }
   }
-  bool dynamic_core_allocation = tdd_conf.value("dynamic_core", false);
-  SetCpuLayoutOnNumaNodes(true, excluded, dynamic_core_allocation);
+  bool dynamic_core_allocation_ = tdd_conf.value("dynamic_core", false);
+  SetCpuLayoutOnNumaNodes(true, excluded, dynamic_core_allocation_);
 
   num_cells_ = tdd_conf.value("cells", 1);
   num_radios_ = 0;
@@ -474,7 +474,7 @@ Config::Config(const std::string& jsonfile)
   frames_to_test_ = tdd_conf.value("max_frame", 9600);
   core_offset_ = tdd_conf.value("core_offset", 0);
   socket_thread_num_ = tdd_conf.value("socket_thread_num", 4);
-  if (dynamic_core_allocation) {
+  if (dynamic_core_allocation_) {
     worker_thread_num_ = GetAvailableCores() - (core_offset_ + socket_thread_num_ + 1);
   } else {
     worker_thread_num_ = tdd_conf.value("worker_thread_num", 25);

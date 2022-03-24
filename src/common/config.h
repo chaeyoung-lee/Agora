@@ -96,6 +96,7 @@ class Config {
   inline size_t BeaconAnt() const { return this->beacon_ant_; }
   inline size_t BeaconLen() const { return this->beacon_len_; }
 
+  inline bool DynamicCoreAlloc() const { return this->dynamic_core_allocation_; }
   inline bool Beamsweep() const { return this->beamsweep_; }
   inline bool SampleCalEn() const { return this->sample_cal_en_; }
   inline bool ImbalanceCalEn() const { return this->imbalance_cal_en_; }
