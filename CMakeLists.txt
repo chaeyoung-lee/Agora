@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 3.10)
 include(CheckCSourceRuns)
 cmake_policy(SET CMP0054 NEW)
 #Allow project version
@@ -44,11 +44,13 @@ else()
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-# Unit tests
-enable_testing()
-find_package(GTest REQUIRED)
-
 option(DEBUG "Enable debugging" OFF)
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+  message(STATUS "Enabling debug mode due to build type")
+  set(DEBUG ON)
+endif()
+
 if(NOT DEBUG)
   message(STATUS "Debugging is disabled")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -DNDEBUG")
@@ -65,14 +67,9 @@ else()
   #-fsanitize=leak -fsanitize=undefined -fsanitize=null
 endif()
 
-#if(CMAKE_BUILD_TYPE MATCHES Debug)
-
 message(STATUS "CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
-
 message(STATUS "CURRENT DIRECTORY: ${CMAKE_CURRENT_SOURCE_DIR}")
 add_definitions(-DPROJECT_DIRECTORY=${SOURCE_DIR})
-
-find_package(Armadillo)
 
 set(USE_DPDK False CACHE STRING "USE_DPDK defaulting to 'False'")
 set(USE_ARGOS False CACHE STRING "USE_ARGOS defaulting to 'False'")
@@ -180,6 +177,9 @@ elseif(${USE_UHD})
   add_definitions(-DUSE_UHD)
 endif()
 
+#External Libraries
+find_package(Armadillo)
+
 find_package(SoapySDR "0.7" CONFIG)
 if(NOT SoapySDR_FOUND)
   message(FATAL_ERROR "SoapySDR development files not found")
@@ -198,52 +198,114 @@ add_definitions(-DTHREADED_INIT)
 set(BLA_VENDOR Intel10_64lp)
 find_package(BLAS)
 
+set(USE_SPDLOG False CACHE STRING "USE_SPDLOG defaulting to 'False'")
+message(STATUS "USE_SPDLOG: ${USE_SPDLOG}")
+if(USE_SPDLOG)
+  if(LOG_LEVEL STREQUAL "none")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::off)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_OFF)
+  elseif(LOG_LEVEL STREQUAL "error")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::err)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_ERROR)
+  elseif(LOG_LEVEL STREQUAL "warn")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::warn)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_WARN)
+  elseif(LOG_LEVEL STREQUAL "info")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::info)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_INFO)
+  elseif(LOG_LEVEL STREQUAL "frame")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::debug)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
+  elseif(LOG_LEVEL STREQUAL "subframe")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::debug)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
+  elseif(LOG_LEVEL STREQUAL "trace")
+    add_definitions(-DSPDLOG_LEVEL=spdlog::level::trace)
+    add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
+  endif()
+
+  message(STATUS "Using spdlog async logger as the default logger")
+  add_definitions(-DUSE_SPDLOG=true)
+  add_definitions(-DSPDLOG_COMPILED_LIB)
+  add_subdirectory(src/third_party/spdlog)
+  set(COMMON_LIBS spdlog::spdlog)
+else ()
+  message(STATUS "Using agora raw logger")
+endif()
+
+set(ENABLE_CSV_LOG False CACHE STRING "ENABLE_CSV_LOG defaulting to 'False'")
+set(ENABLE_MAT_LOG False CACHE STRING "ENABLE_MAT_LOG defaulting to 'False'")
+message(STATUS "ENABLE_CSV_LOG: ${ENABLE_CSV_LOG}")
+message(STATUS "ENABLE_MAT_LOG: ${ENABLE_MAT_LOG}")
+if(USE_SPDLOG AND ENABLE_CSV_LOG)
+  add_definitions(-DENABLE_CSV_LOG=true)
+  message(STATUS "Enabled Csv Logger")
+  if(ENABLE_MAT_LOG)
+    add_definitions(-DENABLE_MAT_LOG=true)
+    message(STATUS "Enabled Mat Logger")
+  else()
+    message(STATUS "Disabled Mat Logger")
+  endif()
+else()
+  message(STATUS "Disabled Csv/Mat Logger")
+endif()
+
 # Console logging level
 if(LOG_LEVEL STREQUAL "none")
   message(STATUS "Logging level = none.")
-  add_definitions(-DMLPD_LOG_LEVEL=0)
+  add_definitions(-DAGORA_LOG_LEVEL=0)
 elseif(LOG_LEVEL STREQUAL "error")
   message(STATUS "Logging level = error.")
-  add_definitions(-DMLPD_LOG_LEVEL=1)
+  add_definitions(-DAGORA_LOG_LEVEL=1)
 elseif(LOG_LEVEL STREQUAL "warn")
   message(STATUS "Logging level = warn.")
-  add_definitions(-DMLPD_LOG_LEVEL=2)
+  add_definitions(-DAGORA_LOG_LEVEL=2)
 elseif(LOG_LEVEL STREQUAL "info")
   message(STATUS "Logging level = info.")
-  add_definitions(-DMLPD_LOG_LEVEL=3)
+  add_definitions(-DAGORA_LOG_LEVEL=3)
 elseif(LOG_LEVEL STREQUAL "frame")
   message(STATUS "Logging level = frame. Warning: Performance will be low.")
-  add_definitions(-DMLPD_LOG_LEVEL=4)
+  add_definitions(-DAGORA_LOG_LEVEL=4)
 elseif(LOG_LEVEL STREQUAL "subframe")
   message(STATUS "Logging level = subframe. Warning: Performance will be low.")
-  add_definitions(-DMLPD_LOG_LEVEL=5)
+  add_definitions(-DAGORA_LOG_LEVEL=5)
 elseif(LOG_LEVEL STREQUAL "trace")
   message(STATUS "Logging level = trace. Warning: Performance will be low.")
-  add_definitions(-DMLPD_LOG_LEVEL=6)
+  add_definitions(-DAGORA_LOG_LEVEL=6)
 else()
   message(STATUS "No logging level specified. Using warning level.")
-  add_definitions(-DMLPD_LOG_LEVEL=2)
+  add_definitions(-DAGORA_LOG_LEVEL=2)
 endif()
+
+find_package(gflags REQUIRED)
+message(STATUS "gflags include directory found: ${GFLAGS_INCLUDE_DIR}")
+
+# Unit tests
+enable_testing()
+find_package(GTest REQUIRED)
 
 include_directories(
   src/common/
+  src/common/loggers
   src/mac/
   src/agora/
   src/agora/txrx/
   src/agora/txrx/workers
   src/client/
+  src/client/txrx
+  src/client/txrx/workers
   /usr/include/mkl/
   src/data_generator)
 
-include_directories(SYSTEM src/third_party src/third_party/nlohmann/single_include)
+include_directories(SYSTEM src/third_party src/third_party/spdlog/include src/third_party/nlohmann/single_include)
 
 set(COMMON_SOURCES
   src/agora/stats.cc
   src/agora/phy_stats.cc
   src/common/framestats.cc
   src/agora/doencode.cc
-  src/common/config.cc
   src/common/utils.cc
+  src/common/config.cc
   src/common/comms-lib.cc
   src/common/comms-lib-avx.cc
   src/common/signal_handler.cc
@@ -253,10 +315,17 @@ set(COMMON_SOURCES
   src/common/crc.cc
   src/common/memory_manage.cc
   src/common/scrambler.cc
+  src/common/loggers/csv_logger.cc
+  src/common/loggers/mat_logger.cc
   src/encoder/cyclic_shift.cc
   src/encoder/encoder.cc
   src/encoder/iobuffer.cc)
 add_library(common_sources_lib OBJECT ${COMMON_SOURCES})
+
+set(SHARED_TXRX_SOURCES
+  src/agora/txrx/packet_txrx.cc
+  src/agora/txrx/workers/txrx_worker.cc)
+add_library(shared_txrx_sources_lib OBJECT ${SHARED_TXRX_SOURCES})
 
 if(${USE_DPDK})
   add_definitions(-DUSE_DPDK)
@@ -275,13 +344,13 @@ set(AGORA_SOURCES ${AGORA_SOURCES}
   src/agora/doprecode.cc
   src/agora/dodecode.cc
   src/agora/radio_lib.cc
-  src/agora/radio_calibrate.cc
+  src/agora/radio_calibrate_digital.cc
+  src/agora/radio_calibrate_analog.cc
   src/mac/mac_thread_basestation.cc
-  src/agora/txrx/packet_txrx.cc
+  src/agora/txrx/packet_txrx_sim.cc
   src/agora/txrx/packet_txrx_radio.cc
-  src/agora/txrx/workers/txrx_worker.cc
   src/agora/txrx/workers/txrx_worker_sim.cc
-  src/agora/txrx/workers/txrx_worker_argos.cc
+  src/agora/txrx/workers/txrx_worker_hw.cc
   src/agora/txrx/workers/txrx_worker_usrp.cc)
 
 add_library(agora_sources_lib OBJECT ${AGORA_SOURCES})
@@ -292,7 +361,10 @@ set(CLIENT_SOURCES
   src/client/client_radio.cc
   src/client/ue_worker.cc
   src/client/phy-ue.cc
-  src/client/txrx_client.cc
+  src/client/txrx/packet_txrx_client_sim.cc
+  src/client/txrx/packet_txrx_client_radio.cc
+  src/client/txrx/workers/txrx_worker_client_sim.cc
+   src/client/txrx/workers/txrx_worker_client_hw.cc
   src/mac/mac_thread_client.cc)
 add_library(client_sources_lib OBJECT ${CLIENT_SOURCES})
   
@@ -307,8 +379,8 @@ set(FLEXRAN_LDPC_LIBS
   ${FLEXRAN_FEC_LIB_DIR}/source/phy/lib_ldpc_decoder_5gnr/libldpc_decoder_5gnr.a
   ${FLEXRAN_FEC_LIB_DIR}/source/phy/lib_common/libcommon.a)
 
-set(COMMON_LIBS armadillo -lnuma ${DPDK_LIBRARIES} ${MKL_LIBS} ${SOAPY_LIB}
-  ${PYTHON_LIB} ${FLEXRAN_LDPC_LIBS} util gflags gtest)
+set(COMMON_LIBS ${COMMON_LIBS} armadillo -lnuma ${DPDK_LIBRARIES} ${MKL_LIBS} ${SOAPY_LIB}
+    ${PYTHON_LIB} ${FLEXRAN_LDPC_LIBS} util gflags gtest)
 
 # TODO: The main agora executable is performance-critical, so we need to
 # test if compiling against precompiled objects instead of compiling directly
@@ -316,6 +388,7 @@ set(COMMON_LIBS armadillo -lnuma ${DPDK_LIBRARIES} ${MKL_LIBS} ${SOAPY_LIB}
 add_executable(agora
   src/agora/main.cc
   $<TARGET_OBJECTS:agora_sources_lib>
+  $<TARGET_OBJECTS:shared_txrx_sources_lib>
   $<TARGET_OBJECTS:common_sources_lib>)
 target_link_libraries(agora ${COMMON_LIBS})
 
@@ -329,6 +402,7 @@ target_compile_definitions(data_generator PRIVATE GENERATE_DATA)
 add_executable(user
   src/client/user-main.cc
   $<TARGET_OBJECTS:client_sources_lib>
+  $<TARGET_OBJECTS:shared_txrx_sources_lib>
   $<TARGET_OBJECTS:common_sources_lib>)
 target_link_libraries(user ${COMMON_LIBS})
 
@@ -370,6 +444,7 @@ target_link_libraries(macbs ${COMMON_LIBS})
 add_executable(test_agora
   test/test_agora/main.cc
   $<TARGET_OBJECTS:agora_sources_lib>
+  $<TARGET_OBJECTS:shared_txrx_sources_lib>
   $<TARGET_OBJECTS:common_sources_lib>)
 target_link_libraries(test_agora ${COMMON_LIBS})
 
@@ -395,6 +470,7 @@ foreach(test_name IN LISTS UNIT_TESTS)
   add_executable(${test_name}
     test/unit_tests/${test_name}.cc
     $<TARGET_OBJECTS:agora_sources_lib>
+    $<TARGET_OBJECTS:shared_txrx_sources_lib>
     $<TARGET_OBJECTS:common_sources_lib>)
 
   # Unit tests should pass without memory errors

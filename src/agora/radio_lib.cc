@@ -242,10 +242,6 @@ void RadioConfig::InitBsRadio(size_t tid) {
     throw std::runtime_error("SoapySDR failed to locate the Bs radio");
   }
   ba_stn_.at(i) = bs_device;
-  for (auto ch : {0, 1}) {
-    ba_stn_.at(i)->setSampleRate(SOAPY_SDR_RX, ch, cfg_->Rate());
-    ba_stn_.at(i)->setSampleRate(SOAPY_SDR_TX, ch, cfg_->Rate());
-  }
 
   // resets the DATA_clk domain logic.
   ba_stn_.at(i)->writeSetting("RESET_DATA_LOGIC", "");
@@ -260,6 +256,10 @@ void RadioConfig::InitBsRadio(size_t tid) {
 void RadioConfig::ConfigureBsRadio(size_t tid) {
   // load channels
   auto channels = Utils::StrToChannels(cfg_->Channel());
+  for (auto ch : channels) {
+    ba_stn_.at(tid)->setSampleRate(SOAPY_SDR_RX, ch, cfg_->Rate());
+    ba_stn_.at(tid)->setSampleRate(SOAPY_SDR_TX, ch, cfg_->Rate());
+  }
 
   // use the TRX antenna port for both tx and rx
   for (auto ch : channels) {
@@ -340,6 +340,9 @@ void RadioConfig::ConfigureBsRadio(size_t tid) {
 }
 
 bool RadioConfig::RadioStart() {
+  if (cfg_->SampleCalEn()) {
+    CalibrateSampleOffset();
+  }
   bool good_calib = false;
   AllocBuffer1d(&init_calib_dl_processed_,
                 cfg_->OfdmDataNum() * cfg_->BfAntNum() * sizeof(arma::cx_float),
@@ -366,7 +369,7 @@ bool RadioConfig::RadioStart() {
       int max_iter = 1;
       std::cout << "Start initial reciprocity calibration..." << std::endl;
       while (good_calib == false) {
-        good_calib = InitialCalib(cfg_->SampleCalEn());
+        good_calib = InitialCalib();
         iter++;
         if ((iter == max_iter) && (good_calib == false)) {
           std::cout << "attempted " << max_iter
@@ -534,17 +537,19 @@ void RadioConfig::Go() {
 }
 
 void RadioConfig::RadioTx(void** buffs) {
+  static constexpr size_t kTxTimeoutUs = 1000000;
   int flags = 0;
   long long frame_time(0);
   for (size_t i = 0; i < this->radio_num_; i++) {
     ba_stn_.at(i)->writeStream(this->tx_streams_.at(i), buffs,
                                cfg_->SampsPerSymbol(), flags, frame_time,
-                               1000000);
+                               kTxTimeoutUs);
   }
 }
 
 int RadioConfig::RadioTx(size_t radio_id, const void* const* buffs, int flags,
                          long long& frameTime) {
+  static constexpr size_t kTxTimeoutUs = 1000000;
   int tx_flags = 0;
   if (flags == 1) {
     tx_flags = SOAPY_SDR_HAS_TIME;
@@ -557,13 +562,13 @@ int RadioConfig::RadioTx(size_t radio_id, const void* const* buffs, int flags,
   if (cfg_->HwFramer() == true) {
     w = ba_stn_.at(radio_id)->writeStream(tx_streams_.at(radio_id), buffs,
                                           cfg_->SampsPerSymbol(), tx_flags,
-                                          frameTime, 1000000);
+                                          frameTime, kTxTimeoutUs);
   } else {
     // For UHD device xmit from host using frameTimeNs
     long long frame_time_ns = SoapySDR::ticksToTimeNs(frameTime, cfg_->Rate());
     w = ba_stn_.at(radio_id)->writeStream(tx_streams_.at(radio_id), buffs,
                                           cfg_->SampsPerSymbol(), tx_flags,
-                                          frame_time_ns, 1000000);
+                                          frame_time_ns, kTxTimeoutUs);
   }
   if (kDebugRadioTX) {
     size_t chan_mask;
@@ -592,13 +597,14 @@ int RadioConfig::RadioTx(
 }
 
 void RadioConfig::RadioRx(void** buffs) {
+  static constexpr size_t kTxTimeoutUs = 1000000;
   long long frame_time(0);
   int rx_flags = SOAPY_SDR_END_BURST;
   for (size_t i = 0; i < this->radio_num_; i++) {
     void** buff = buffs + (i * 2);
     ba_stn_.at(i)->readStream(this->rx_streams_.at(i), buff,
                               cfg_->SampsPerSymbol(), rx_flags, frame_time,
-                              1000000);
+                              kTxTimeoutUs);
   }
 }
 

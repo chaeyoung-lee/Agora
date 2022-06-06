@@ -6,6 +6,7 @@
 
 #include "config.h"
 #include "gflags/gflags.h"
+#include "logger.h"
 #include "phy-ue.h"
 #include "signal_handler.h"
 #include "version_config.h"
@@ -19,6 +20,8 @@ int main(int argc, char* argv[]) {
   gflags::SetVersionString(GetAgoraProjectVersion());
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
+  AGORA_LOG_INIT();
+
   std::string filename;
   // For backwards compatibility
   if (argc == 2) {
@@ -28,6 +31,7 @@ int main(int argc, char* argv[]) {
   } else {
     filename = FLAGS_conf_file;
   }
+
   auto config = std::make_unique<Config>(filename.c_str());
   config->GenData();
   int ret;
@@ -46,5 +50,7 @@ int main(int argc, char* argv[]) {
 
   PrintCoreAssignmentSummary();
   gflags::ShutDownCommandLineFlags();
+  AGORA_LOG_SHUTDOWN();
+
   return ret;
 }

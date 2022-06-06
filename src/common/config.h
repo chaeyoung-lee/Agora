@@ -33,6 +33,7 @@
 
 class Config {
  public:
+  static constexpr bool kDebugRecipCal = false;
   // Constructor
   explicit Config(const std::string& /*jsonfile*/);
   ~Config();
@@ -59,6 +60,7 @@ class Config {
 
   inline bool HwFramer() const { return this->hw_framer_; }
   inline bool UeHwFramer() const { return this->ue_hw_framer_; }
+  inline size_t UeResyncPeriod() const { return this->ue_resync_period_; }
   inline double FreqGhz() const { return this->freq_ghz_; };
   inline double Freq() const { return this->freq_; }
   inline double Rate() const { return this->rate_; }
@@ -106,10 +108,7 @@ class Config {
   inline std::string Channel() const { return this->channel_; }
   inline std::string UeChannel() const { return this->ue_channel_; }
 
-  //Groups for Downlink Recip Cal
-  inline size_t AntGroupNum() const { return this->ant_group_num_; }
-  inline size_t AntPerGroup() const { return this->ant_per_group_; }
-
+  // Groups for Downlink Recip Cal
   // Returns antenna number for rec cal dl symbol
   // Assumes that there are the same number of dl cal symbols in each frame
   inline size_t RecipCalDlAnt(size_t frame_id, size_t dl_cal_symbol) const {
@@ -118,29 +117,60 @@ class Config {
                                  frame_.GetDLCalSymbolIdx(dl_cal_symbol);
 
     const size_t tx_ant = dl_cal_offset % bf_ant_num_;
-    std::printf("RecipCalDlAnt (Frame %zu, Symbol %zu) tx antenna %zu\n",
-                frame_id, dl_cal_symbol, tx_ant);
 
+    if (kDebugRecipCal) {
+      std::printf("RecipCalDlAnt (Frame %zu, Symbol %zu) tx antenna %zu\n",
+                  frame_id, dl_cal_symbol, tx_ant);
+    }
     return (tx_ant);
   };
 
+  inline size_t ModifyRecCalIndex(size_t previous_index,
+                                  int mod_value = 0) const {
+    return (previous_index + mod_value) % kFrameWnd;
+  }
+
+  inline size_t RecipCalIndex(size_t frame_id) const {
+    const size_t frame_cal_idx = frame_id / RecipCalFrameCnt();
+    return ModifyRecCalIndex(frame_cal_idx);
+  }
+
   // Returns the cal index if ant tx dl cal pilots this frame
   // SIZE_MAX otherwise
-  size_t RecipCalUlRxIndex(size_t frame_id, size_t ant) const {
+  inline size_t RecipCalUlRxIndex(size_t frame_id, size_t ant) const {
+    const size_t num_frames_for_full_cal = RecipCalFrameCnt();
+    const size_t num_cal_per_idx = frame_.NumDLCalSyms();
+    const size_t cal_offset = (frame_id % num_frames_for_full_cal);
+    const size_t tx_ant_start = cal_offset * num_cal_per_idx;
+    const size_t tx_ant_end = tx_ant_start + (num_cal_per_idx - 1);
+
     size_t cal_ind;
-    const size_t num_frames_for_full_cal = bf_ant_num_ / frame_.NumDLCalSyms();
-    const size_t frame_cal_idx = frame_id / num_frames_for_full_cal;
-    const size_t tx_ant_start = frame_id % num_frames_for_full_cal;
-    const size_t tx_ant_end = tx_ant_start + (frame_.NumDLCalSyms() - 1);
-    if (ant >= tx_ant_start && ant <= tx_ant_end) {
-      cal_ind = frame_cal_idx % kFrameWnd;
+    if ((ant >= tx_ant_start) && (ant <= tx_ant_end)) {
+      cal_ind = RecipCalIndex(frame_id);
     } else {
       cal_ind = SIZE_MAX;
     }
-    std::printf("RecipCalUlRxIndex (Frame %zu, Antenna %zu) index %zu\n",
-                frame_id, ant, cal_ind);
+
+    if (kDebugRecipCal) {
+      std::printf(
+          "RecipCalUlRxIndex (Frame %zu, Antenna %zu) index %zu - Start %zu, "
+          "End %zu, full %zu\n",
+          frame_id, ant, cal_ind, tx_ant_start, tx_ant_end,
+          num_frames_for_full_cal);
+    }
     return (cal_ind);
   };
+
+  // Returns the number of frames to obtain a full set of RecipCal data
+  // assumes that bf_ant_num_ % frame_.NumDLCalSyms() == 0
+  inline size_t RecipCalFrameCnt() const {
+    if ((frame_.IsRecCalEnabled() == false) || (frame_.NumDLCalSyms() == 0)) {
+      return 0;
+    } else {
+      assert((bf_ant_num_ % frame_.NumDLCalSyms()) == 0);
+      return bf_ant_num_ / frame_.NumDLCalSyms();
+    }
+  }
 
   inline size_t CoreOffset() const { return this->core_offset_; }
   inline size_t WorkerThreadNum() const { return this->worker_thread_num_; }
@@ -184,13 +214,22 @@ class Config {
   inline size_t OfdmRxZeroPrefixCalUl() const {
     return this->ofdm_rx_zero_prefix_cal_ul_;
   }
+  void OfdmRxZeroPrefixCalUl(size_t prefix) {
+    this->ofdm_rx_zero_prefix_cal_ul_ = prefix;
+  }
   inline size_t OfdmRxZeroPrefixCalDl() const {
     return this->ofdm_rx_zero_prefix_cal_dl_;
+  }
+  void OfdmRxZeroPrefixCalDl(const size_t prefix) {
+    this->ofdm_rx_zero_prefix_cal_dl_ = prefix;
   }
   inline size_t OfdmRxZeroPrefixClient() const {
     return this->ofdm_rx_zero_prefix_client_;
   }
   inline size_t SampsPerSymbol() const { return this->samps_per_symbol_; }
+  inline size_t SampsPerFrame() const {
+    return this->frame_.NumTotalSyms() * this->samps_per_symbol_;
+  }
   inline size_t PacketLength() const { return this->packet_length_; }
 
   inline float Scale() const { return this->scale_; }
@@ -596,6 +635,7 @@ class Config {
   // true: use hardware correlator; false: use software corrleator
   bool hw_framer_;
   bool ue_hw_framer_;
+  size_t ue_resync_period_;
 
   double freq_;
   double rate_;
@@ -627,8 +667,6 @@ class Config {
   std::vector<bool> external_ref_node_;
   std::string channel_;
   std::string ue_channel_;
-  size_t ant_group_num_;
-  size_t ant_per_group_;
 
   size_t core_offset_;
   size_t worker_thread_num_;

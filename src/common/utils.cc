@@ -245,7 +245,7 @@ std::vector<size_t> Utils::StrToChannels(const std::string& channel) {
 }
 
 std::vector<std::complex<int16_t>> Utils::DoubleToCint16(
-    std::vector<std::vector<double>> in) {
+    const std::vector<std::vector<double>>& in) {
   int len = in[0].size();
   std::vector<std::complex<int16_t>> out(len, 0);
   for (int i = 0; i < len; i++) {
@@ -256,7 +256,7 @@ std::vector<std::complex<int16_t>> Utils::DoubleToCint16(
 }
 
 std::vector<std::complex<float>> Utils::DoubleToCfloat(
-    std::vector<std::vector<double>> in) {
+    const std::vector<std::vector<double>>& in) {
   int len = in[0].size();
   std::vector<std::complex<float>> out(len, 0);
   for (int i = 0; i < len; i++) {
@@ -266,7 +266,7 @@ std::vector<std::complex<float>> Utils::DoubleToCfloat(
 }
 
 std::vector<std::complex<float>> Utils::Uint32tocfloat(
-    std::vector<uint32_t> in, const std::string& order) {
+    const std::vector<uint32_t>& in, const std::string& order) {
   int len = in.size();
   std::vector<std::complex<float>> out(len, 0);
   for (size_t i = 0; i < in.size(); i++) {
@@ -287,8 +287,18 @@ std::vector<std::complex<float>> Utils::Uint32tocfloat(
   return out;
 }
 
+std::vector<std::complex<float>> Utils::Cint16ToCfloat32(
+    const std::vector<std::complex<int16_t>>& in) {
+  std::vector<std::complex<float>> samps(in.size());
+  std::transform(
+      in.begin(), in.end(), samps.begin(), [](std::complex<int16_t> ci) {
+        return std::complex<float>(ci.real() / 32768.0, ci.imag() / 32768.0);
+      });
+  return samps;
+}
+
 std::vector<uint32_t> Utils::Cint16ToUint32(
-    std::vector<std::complex<int16_t>> in, bool conj,
+    const std::vector<std::complex<int16_t>>& in, bool conj,
     const std::string& order) {
   std::vector<uint32_t> out(in.size(), 0);
   for (size_t i = 0; i < in.size(); i++) {
@@ -304,7 +314,8 @@ std::vector<uint32_t> Utils::Cint16ToUint32(
 }
 
 std::vector<uint32_t> Utils::Cfloat32ToUint32(
-    std::vector<std::complex<float>> in, bool conj, const std::string& order) {
+    const std::vector<std::complex<float>>& in, bool conj,
+    const std::string& order) {
   std::vector<uint32_t> out(in.size(), 0);
   for (size_t i = 0; i < in.size(); i++) {
     auto re =
@@ -416,7 +427,7 @@ std::vector<std::string> Utils::Split(const std::string& s, char delimiter) {
   return tokens;
 }
 
-void Utils::PrintVector(std::vector<std::complex<int16_t>>& data) {
+void Utils::PrintVector(const std::vector<std::complex<int16_t>>& data) {
   for (auto& i : data) {
     std::cout << real(i) << " " << imag(i) << std::endl;
   }
