@@ -344,80 +344,6 @@ class RxCounters {
   }
 };
 
-#pragma pack(push, 1)
-struct RpPacketHeaderPacked {
- public:
-  inline const uint16_t &Frame() const { return frame_id_; }
-  inline const uint16_t &Symbol() const { return symbol_id_; }
-  inline const uint16_t &Ue() const { return ue_id_; }
-  inline const uint16_t &Crc() const { return crc_; }
-  inline const uint16_t &PayloadLength() const { return datalen_; }
-
-  // Modifiers
-  inline void Set(const uint16_t &f, const uint16_t &s, const uint16_t &u,
-                  const uint16_t &d, const uint16_t &cc) {
-    frame_id_ = f;
-    symbol_id_ = s;
-    ue_id_ = u;
-    datalen_ = d;
-    crc_ = cc;
-  }
-  inline void Crc(const uint16_t &crc) { crc_ = crc; }
-
- private:
-  uint16_t frame_id_;
-  uint16_t symbol_id_;
-  uint16_t ue_id_;
-  uint16_t datalen_;  // length of payload in bytes or array data[]
-  uint16_t crc_;      // 16 bits CRC over calculated for the data[] array
-#if ENABLE_RB_IND
-  RBIndicator rb_indicator_;  // RAN scheduling details for PHY
-#endif
-};
-
-struct RpPacketPacked {
- public:
-  static constexpr size_t kHeaderSize = sizeof(RpPacketHeaderPacked);
-
-  inline const uint16_t &Frame() const { return header_.Frame(); }
-  inline const uint16_t &Symbol() const { return header_.Symbol(); }
-  inline const uint16_t &Ue() const { return header_.Ue(); }
-  inline const uint16_t &Crc() const { return header_.Crc(); }
-  inline const uint16_t &PayloadLength() const {
-    return header_.PayloadLength();
-  }
-  inline const unsigned char *Data() const { return data_; };
-
-  // Modifiers
-  inline void Set(const uint16_t &f, const uint16_t &s, const uint16_t &u,
-                  const uint16_t &data_size) {
-    header_.Set(f, s, u, data_size, 0);
-  }
-  inline void LoadData(const unsigned char *src_data) {
-    std::memcpy(this->data_, src_data, this->PayloadLength());
-  }
-  inline void Crc(const uint16_t &crc) { header_.Crc(crc); }
-  inline unsigned char *DataPtr() { return data_; };
-
- private:
-  RpPacketHeaderPacked header_;
-  unsigned char data_[];  // Mac packet payload data
-};
-#pragma pack(pop)
-
-// Event data tag for Mac RX events
-union rx_rp_tag_t {
-  struct {
-    size_t tid_ : 8;      // ID of the socket thread that received the packet
-    size_t offset_ : 56;  // Offset in the socket thread's RX buffer
-  };
-  size_t tag_;
-
-  rx_rp_tag_t(size_t tid, size_t offset) : tid_(tid), offset_(offset) {}
-  explicit rx_rp_tag_t(size_t _tag) : tag_(_tag) {}
-};
-static_assert(sizeof(rx_mac_tag_t) == sizeof(size_t));
-
 /**
  * @brief This class stores the counters corresponding to a frame.
  * Specifically, it contains a) the number of symbols per frame
@@ -558,3 +484,25 @@ class FrameCounters {
 };
 
 #endif  // BUFFER_H_
+
+/**
+ * @brief The packet that contains the control information that tells
+ * Agora how much resource to allocate.
+ * TODO: this is a work in progress.
+ */
+class RPControlMsg {
+ public:
+  size_t add_core_;
+  size_t remove_core_;
+};
+
+/**
+ * @brief The packet that contains the traffic information that tells
+ * remotely running Resource Provisioner (RP) how busy Agora is.
+ * TODO: this is a work in progress.
+ */
+class RPTrafficMsg {
+ public:
+  size_t latency_;
+  size_t queue_load_;
+};

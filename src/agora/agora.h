@@ -28,6 +28,7 @@
 #include "doprecode.h"
 #include "dozf.h"
 #include "mac_thread_basestation.h"
+#include "resource_provisioner.h"
 #include "mat_logger.h"
 #include "memory_manage.h"
 #include "packet_txrx.h"
@@ -320,6 +321,10 @@ class Agora {
 
   // Worker-to-master queue for MAC
   moodycamel::ConcurrentQueue<EventData> mac_response_queue_;
+
+  // Resource Provisioner
+  moodycamel::ConcurrentQueue<EventData> rp_request_queue_;
+  moodycamel::ConcurrentQueue<EventData> rp_response_queue_;
 
   // Master thread's message queue for event completion from Doers;
   moodycamel::ConcurrentQueue<EventData> complete_task_queue_[kScheduleQueues];

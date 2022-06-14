@@ -103,6 +103,12 @@ Agora::Agora(Config* const cfg)
 
   // Call dynamic core allocation
   if (cfg->DynamicCoreAlloc()) {
+    // tx/rx with resource provisioner
+    rp_thread_ = std::make_unique<ResourceProvisionerThread>(
+        cfg, mac_cpu_core, &rm_request_queue_, &rm_response_queue_);
+    rp_std_thread_ = std::thread(&ResourceProvisionerThread::RunEventLoop, rp_thread_.get());
+
+    // agora dynamic core allocator
     dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
   }
 
@@ -130,6 +136,7 @@ Agora::~Agora() {
   // Dynamic core allocation
   if (cfg->DynamicCoreAlloc()) {
     dynamic_core_thread_.join();
+    rp_std_thread_.join();
   }
 
   stats_.reset();
