@@ -57,6 +57,7 @@ enum class EventType : int {
   kSNRReport,   // Signal new SNR measurement from PHY to MAC
   kRANUpdate,   // Signal new RAN config to Agora
   kRBIndicator  // Signal RB schedule to UEs
+  kPacketFromRp,
 };
 
 static constexpr size_t kNumEventTypes =

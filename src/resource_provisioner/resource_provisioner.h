@@ -60,6 +60,9 @@ class ResourceProvisionerThread {
   std::unique_ptr<UDPClient> udp_client_;
   std::unique_ptr<UDPServer> udp_server_;
 
+  // A preallocated buffer to store UDP packets received via recv()
+  std::vector<uint8_t> udp_pkt_buf_;
+
   // FIFO queue for receiving & sending messages from the master thread
   moodycamel::ConcurrentQueue<EventData>* rx_queue_;
   moodycamel::ConcurrentQueue<EventData>* tx_queue_;
