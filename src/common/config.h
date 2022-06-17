@@ -312,6 +312,8 @@ class Config {
   inline size_t UeMacRxPort() const { return this->ue_mac_rx_port_; }
   inline size_t UeMacTxPort() const { return this->ue_mac_tx_port_; }
 
+  inline size_t RpRxPort() const { return this->rp_rx_port_; }
+
   /* Inline accessors (complex types) */
   inline const std::vector<int>& ClTxAdvance() const {
     return this->cl_tx_advance_;
@@ -661,6 +663,7 @@ class Config {
   size_t beacon_ant_;
   size_t beacon_len_;
   size_t init_calib_repeat_;
+  bool dynamic_core_allocation_;
   bool beamsweep_;
   bool sample_cal_en_;
   bool imbalance_cal_en_;
@@ -815,6 +818,9 @@ class Config {
   // Port ID at Client MAC layer side
   size_t ue_mac_rx_port_;
   size_t ue_mac_tx_port_;
+
+  // Port ID at RP
+  size_t rp_rx_port_;
 
   // Number of frames_ sent by sender during testing = number of frames_
   // processed by Agora before exiting.

@@ -498,19 +498,19 @@ class FrameCounters {
  * Agora how much resource to allocate.
  * TODO: this is a work in progress.
  */
-class RPControlMsg {
- public:
-  size_t add_core_;
-  size_t remove_core_;
-};
+// class RPControlMsg {
+//  public:
+//   size_t add_core_;
+//   size_t remove_core_;
+// };
 
 /**
  * @brief The packet that contains the traffic information that tells
  * remotely running Resource Provisioner (RP) how busy Agora is.
  * TODO: this is a work in progress.
  */
-class RPTrafficMsg {
- public:
-  size_t latency_;
-  size_t queue_load_;
-};
+// class RPTrafficMsg {
+//  public:
+//   size_t latency_;
+//   size_t queue_load_;
+// };

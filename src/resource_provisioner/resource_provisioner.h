@@ -29,9 +29,10 @@ class ResourceProvisionerThread {
  public:
   // Default log file for RP layer outputs
   static constexpr char kDefaultLogFilename[] = "data/rp_log_server";
+  static constexpr size_t kUdpRxBufferPadding = 2048u;
 
   ResourceProvisionerThread(
-      Config* const cfg,
+      Config* const cfg, size_t core_offset,
       moodycamel::ConcurrentQueue<EventData>* rx_queue,
       moodycamel::ConcurrentQueue<EventData>* tx_queue,
       const std::string& log_filename = "");

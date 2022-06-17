@@ -175,6 +175,10 @@ class Agora {
   std::thread mac_std_thread_;
   std::vector<std::thread> workers_;
 
+  // The thread running RP thread functions
+  std::unique_ptr<ResourceProvisionerThread> rp_thread_;
+  std::thread rp_std_thread_;
+
   std::thread dynamic_core_thread_;
   std::vector<bool> active_core_;
 

@@ -53,11 +53,12 @@ enum class EventType : int {
   kModul,
   kPacketFromMac,
   kPacketToMac,
+  kPacketFromRp,
+  kPacketToRp,
   kFFTPilot,
   kSNRReport,   // Signal new SNR measurement from PHY to MAC
   kRANUpdate,   // Signal new RAN config to Agora
   kRBIndicator  // Signal RB schedule to UEs
-  kPacketFromRp,
 };
 
 static constexpr size_t kNumEventTypes =
@@ -319,7 +320,7 @@ static constexpr size_t kMacBaseClientPort = 7070;
 
 // Resource Provisioner (RP) is running in this address
 // We send UDP packets to RP including traffic data
-static constexpr size_t kRpRemoteHostname[] = "127.0.0.2";
+static constexpr char kRpRemoteHostname[] = "127.0.0.2";
 static constexpr size_t kRpRemotePort = 7070;
 
 // Number of subcarriers in a partial transpose block

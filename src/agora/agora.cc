@@ -105,7 +105,7 @@ Agora::Agora(Config* const cfg)
   if (cfg->DynamicCoreAlloc()) {
     // tx/rx with resource provisioner
     rp_thread_ = std::make_unique<ResourceProvisionerThread>(
-        cfg, mac_cpu_core, &rm_request_queue_, &rm_response_queue_);
+        cfg, cfg->CoreOffset(), &rp_request_queue_, &rp_response_queue_);
     rp_std_thread_ = std::thread(&ResourceProvisionerThread::RunEventLoop, rp_thread_.get());
 
     // agora dynamic core allocator
@@ -134,7 +134,7 @@ Agora::~Agora() {
   FreeDownlinkBuffers();
 
   // Dynamic core allocation
-  if (cfg->DynamicCoreAlloc()) {
+  if (config_->DynamicCoreAlloc()) {
     dynamic_core_thread_.join();
     rp_std_thread_.join();
   }

@@ -288,6 +288,7 @@ include_directories(
   src/common/
   src/common/loggers
   src/mac/
+  src/resource_provisioner
   src/agora/
   src/agora/txrx/
   src/agora/txrx/workers
@@ -351,7 +352,8 @@ set(AGORA_SOURCES ${AGORA_SOURCES}
   src/agora/txrx/packet_txrx_radio.cc
   src/agora/txrx/workers/txrx_worker_sim.cc
   src/agora/txrx/workers/txrx_worker_hw.cc
-  src/agora/txrx/workers/txrx_worker_usrp.cc)
+  src/agora/txrx/workers/txrx_worker_usrp.cc
+  src/resource_provisioner/resource_provisioner.cc)
 
 add_library(agora_sources_lib OBJECT ${AGORA_SOURCES})
 
