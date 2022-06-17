@@ -77,31 +77,31 @@ ResourceProvisionerThread::~ResourceProvisionerThread() {
 //   }
 // }
 
-// /*
-//  * RP <- Agora
-//  */
-// void ResourceProvisionerThread::ReceiveEventFromAgora() {
-//   EventData event;
-//   if (rx_queue_->try_dequeue(event) == false) {
-//     return;
-//   }
+/*
+ * Agora -> ReceiveEventFromAgora() -> SendUdpPacketsToRp(event) -> RP
+ */
+void ResourceProvisionerThread::ReceiveEventFromAgora() {
+  EventData event;
+  if (rx_queue_->try_dequeue(event) == false) {
+    return;
+  }
 
-//   if (event.event_type_ == EventType::kPacketToRp) {
-//     AGORA_LOG_TRACE("ResourceProvisionerThread: RP thread event kPacketToRp\n");
-//     SendUdpPacketsToRp(event);
-//   }
-// }
+  if (event.event_type_ == EventType::kPacketToRp) {
+    AGORA_LOG_TRACE("ResourceProvisionerThread: RP thread event kPacketToRp\n");
+    SendUdpPacketsToRp(event);
+  }
+}
 
-// void ResourceProvisionerThread::SendUdpPacketsToRp(EventData event) {
-//   // Create traffic data packet
-//   RPTrafficMsg msg;
-//   msg.latency_ = event.tags[0];
-//   msg.queue_load_ = event.tags[1];
-//   udp_client_->Send(kRpRemoteHostname, kRpRemotePort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
+void ResourceProvisionerThread::SendUdpPacketsToRp(EventData event) {
+  // Create traffic data packet
+  RPTrafficMsg msg;
+  msg.latency_ = event.tags_[0];
+  msg.queue_load_ = event.tags_[1];
+  udp_client_->Send(kRpRemoteHostname, kRpRemotePort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
 
-//   // update RAN config within Agora
-//   SendRanConfigUpdate(EventData(EventType::kRANUpdate));
-// }
+  // // update RAN config within Agora
+  // SendRanConfigUpdate(EventData(EventType::kRANUpdate));
+}
 
 void ResourceProvisionerThread::RunEventLoop() {
   AGORA_LOG_INFO(
@@ -115,5 +115,7 @@ void ResourceProvisionerThread::RunEventLoop() {
 
   while (cfg_->Running() == true) {
     // loop
+    // but how often??
+    ReceiveEventFromAgora();
   }
 }

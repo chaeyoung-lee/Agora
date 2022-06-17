@@ -519,6 +519,24 @@ void Agora::Start() {
           }
         } break;
 
+        case EventType::kPacketFromRp: {
+          // Control message from RP
+          RPControlMsg rcm;
+          rcm.add_core_ = event.tags_[0];
+          rcm.remove_core_ = event.tags_[1];
+          // UpdateCores(rcm);
+        } break;
+
+        case EventType::kPacketToRp: {
+          // Traffic info to RP
+          RPTrafficMsg rtm; // = UpdateTraffic();
+          // TODO: pseudo data
+          rtm.latency_ = 10;
+          rtm.queue_load_ = 5;
+          TryEnqueueFallback(&rp_request_queue_,
+                          EventData(EventType::kPacketToRp, rtm.latency_, rtm.queue_load_));
+        } break;
+
         case EventType::kRANUpdate: {
           RanConfig rc;
           rc.n_antennas_ = event.tags_[0];

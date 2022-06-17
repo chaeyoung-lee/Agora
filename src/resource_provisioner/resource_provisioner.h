@@ -16,6 +16,7 @@
 #include "symbols.h"
 #include "udp_client.h"
 #include "udp_server.h"
+#include "rp_config.h"
 
 /**
  * @brief The RP thread that runs alongside the PHY processing at the Agora
@@ -45,8 +46,8 @@ class ResourceProvisionerThread {
 
  private:
   // Communicate with RP via UDP
-  void ReceiveUdpPackets(); // RX
-  void SendUdpPackets(); // TX
+  void ReceiveEventFromAgora();
+  void SendUdpPacketsToRp(EventData event);
 
   Config* const cfg_;
 
