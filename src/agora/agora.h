@@ -28,7 +28,7 @@
 #include "doprecode.h"
 #include "dozf.h"
 #include "mac_thread_basestation.h"
-#include "resource_provisioner.h"
+#include "resource_provisioner_thread.h"
 #include "mat_logger.h"
 #include "memory_manage.h"
 #include "packet_txrx.h"

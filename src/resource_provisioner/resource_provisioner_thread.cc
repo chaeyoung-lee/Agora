@@ -2,7 +2,7 @@
  * @file rp_thread.cc
  * @brief Implementation file for the ResourceProvisionerThread class.
  */
-#include "resource_provisioner.h"
+#include "resource_provisioner_thread.h"
 
 ResourceProvisionerThread::ResourceProvisionerThread(
     Config* cfg, size_t core_offset,
@@ -11,7 +11,7 @@ ResourceProvisionerThread::ResourceProvisionerThread(
     const std::string& log_filename)
     : cfg_(cfg),
       freq_ghz_(GetTime::MeasureRdtscFreq()),
-      tsc_delta_((cfg_->GetFrameDurationSec() * 1e9) / freq_ghz_),
+      tsc_delta_((cfg_->GetFrameDurationSec() * 1e9) / freq_ghz_ * 1000), // ticks every ~1s
       core_offset_(core_offset),
       rx_queue_(rx_queue),
       tx_queue_(tx_queue) {
@@ -50,17 +50,25 @@ ResourceProvisionerThread::~ResourceProvisionerThread() {
   AGORA_LOG_INFO("ResourceProvisionerThread: RP thread destroyed\n");
 }
 
+void ResourceProvisionerThread::RequestEventFromAgora() {
+  // create event from pkt
+  EventData msg(EventType::kPacketToRp, 0);
+  RtAssert(tx_queue_->enqueue(msg), "ResourceProvisionerThread: Failed to enqueue control packet");
+}
+
 /*
- * RP -> Agora
+ * RP -> ReceiveUdpPacketsFromRp() -> SendEventToAgora(payload) -> Agora
  */
 // void ResourceProvisionerThread::SendEventToAgora(const char* payload) {
-//   const auto* pkt = reinterpret_cast<const RPControlMsg*>(&payload[0]);
-//   // create event from pkt
-//   EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
-//   AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
-//                   pkt->add_core_, pkt->remove_core_);
-//   RtAssert(tx_queue_->enqueue(msg),
-//           "ResourceProvisionerThread: Failed to enqueue control packet");
+  // const auto* pkt = reinterpret_cast<const RPControlMsg*>(&payload[0]);
+  // // create event from pkt
+  // EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
+  // AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
+  //                 pkt->add_core_, pkt->remove_core_);
+  // RtAssert(tx_queue_->enqueue(msg),
+  //         "ResourceProvisionerThread: Failed to enqueue control packet");
+  
+//   RequestEventFromAgora();
 // }
 
 // void ResourceProvisionerThread::ReceiveUdpPacketsFromRp() {
@@ -110,12 +118,16 @@ void ResourceProvisionerThread::RunEventLoop() {
     log_filename_.c_str()
   );
 
-  PinToCoreWithOffset(ThreadType::kMaster, core_offset_,
+  PinToCoreWithOffset(ThreadType::kWorkerRpTXRX, core_offset_,
                       0 /* thread ID */);
 
+  size_t last_frame_tx_tsc = 0; // keep the frequency of function call
+
   while (cfg_->Running() == true) {
-    // loop
-    // but how often??
-    ReceiveEventFromAgora();
+    if ((GetTime::Rdtsc() - last_frame_tx_tsc) > tsc_delta_) {
+      RequestEventFromAgora();
+      ReceiveEventFromAgora();
+      last_frame_tx_tsc = GetTime::Rdtsc();
+    }
   }
 }

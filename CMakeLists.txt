@@ -353,7 +353,7 @@ set(AGORA_SOURCES ${AGORA_SOURCES}
   src/agora/txrx/workers/txrx_worker_sim.cc
   src/agora/txrx/workers/txrx_worker_hw.cc
   src/agora/txrx/workers/txrx_worker_usrp.cc
-  src/resource_provisioner/resource_provisioner.cc)
+  src/resource_provisioner/resource_provisioner_thread.cc)
 
 add_library(agora_sources_lib OBJECT ${AGORA_SOURCES})
 

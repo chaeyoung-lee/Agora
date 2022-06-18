@@ -44,7 +44,7 @@ Config::Config(const std::string& jsonfile)
       excluded.at(i) = exclude_cores.at(i);
     }
   }
-  bool dynamic_core_allocation_ = tdd_conf.value("dynamic_core", false);
+  dynamic_core_allocation_ = tdd_conf.value("dynamic_core", false);
   SetCpuLayoutOnNumaNodes(true, excluded, dynamic_core_allocation_);
 
   num_cells_ = tdd_conf.value("cells", 1);
@@ -228,6 +228,8 @@ Config::Config(const std::string& jsonfile)
   ue_mac_rx_port_ = tdd_conf.value("ue_mac_rx_port", kMacUserLocalPort);
   bs_mac_tx_port_ = tdd_conf.value("bs_mac_tx_port", kMacBaseRemotePort);
   bs_mac_rx_port_ = tdd_conf.value("bs_mac_rx_port", kMacBaseLocalPort);
+
+  rp_rx_port_ = tdd_conf.value("rp_rx_port", 7777);
 
   /* frame configurations */
   cp_len_ = tdd_conf.value("cp_size", 0);

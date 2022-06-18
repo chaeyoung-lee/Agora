@@ -29,7 +29,7 @@
 class ResourceProvisionerThread {
  public:
   // Default log file for RP layer outputs
-  static constexpr char kDefaultLogFilename[] = "data/rp_log_server";
+  static constexpr char kDefaultLogFilename[] = "data/rp_log_server.txt";
   static constexpr size_t kUdpRxBufferPadding = 2048u;
 
   ResourceProvisionerThread(
@@ -46,6 +46,7 @@ class ResourceProvisionerThread {
 
  private:
   // Communicate with RP via UDP
+  void RequestEventFromAgora();
   void ReceiveEventFromAgora();
   void SendUdpPacketsToRp(EventData event);
 

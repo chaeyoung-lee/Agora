@@ -33,6 +33,7 @@ tags
 data/timeresult.txt
 data/timeresult_detail.txt
 data/tx_result.txt
+data/rp_log_server.txt
 
 # OS generated files #
 ######################
