@@ -530,7 +530,9 @@ void Agora::Start() {
           RPControlMsg rcm;
           rcm.add_core_ = event.tags_[0];
           rcm.remove_core_ = event.tags_[1];
-          // UpdateCores(rcm);
+          AGORA_LOG_INFO("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
+                  rcm.add_core_, rcm.remove_core_);
+          UpdateCores(rcm);
         } break;
 
         case EventType::kPacketToRp: {
@@ -1141,6 +1143,27 @@ void Agora::CreateThreads() {
   }
 }
 
+void Agora::UpdateCores(RPControlMsg rcm) {
+  AGORA_LOG_INFO("=================================\n"
+                "[ALERT] DYNAMIC CORE ALLOCATION\n");
+
+  // Add workers
+  size_t next_core_num_ = std::min(workers_.size() + rcm.add_core_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
+  for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
+    // Add queue
+    for (size_t j = 0; j < kScheduleQueues; j++) {
+      worker_ptoks_ptr_[core_i][j] =
+          new moodycamel::ProducerToken(complete_task_queue_[j]);
+    }
+
+    // Update info
+    active_core_[core_i] = true;
+    workers_.emplace_back(&Agora::Worker, this, core_i);
+    std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
+    AGORA_LOG_SYMBOL("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
+  }
+}
+
 void Agora::DynamicCore() {
   while (this->config_->Running()) {
   // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
@@ -1152,7 +1175,6 @@ void Agora::DynamicCore() {
 
     std::printf("=================================\n");
     std::printf("[ALERT] DYNAMIC CORE ALLOCATION\n");
-    AGORA_LOG_SYMBOL("=================================\n[ALERT] DYNAMIC CORE ALLOCATION\n");
 
     if (workers_.size() < next_core_num_) {
       next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));

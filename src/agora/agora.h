@@ -94,6 +94,7 @@ class Agora {
   void CreateThreads();  /// Launch worker threads
 
   /// Dynamically (de)allocate workers during runtime, based on configuration.
+  void UpdateCores(RPControlMsg rcm);
   void DynamicCore();
 
   void InitializeQueues();

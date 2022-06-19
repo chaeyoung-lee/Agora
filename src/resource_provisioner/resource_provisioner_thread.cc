@@ -65,10 +65,8 @@ void ResourceProvisionerThread::SendEventToAgora(const char* payload) {
   EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
   AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
                   pkt->add_core_, pkt->remove_core_);
-  AGORA_LOG_INFO("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
-                  pkt->add_core_, pkt->remove_core_);
-  // RtAssert(tx_queue_->enqueue(msg),
-  //         "ResourceProvisionerThread: Failed to enqueue control packet");
+  RtAssert(tx_queue_->enqueue(msg),
+          "ResourceProvisionerThread: Failed to enqueue control packet");
   
   // RequestEventFromAgora();
 }

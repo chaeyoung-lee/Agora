@@ -4,13 +4,13 @@ import struct
 import time
 
 ip = "127.0.0.2"
-port = 7070 # Agora -> RP
-# tx_port = 7777 # Agora <- RP
+rx_port = 7070 # Agora -> RP
+tx_port = 7777 # Agora <- RP
 
 # Create a UDP socket
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Bind the socket to the port
-server_address = (ip, port)
+server_address = (ip, rx_port)
 s.bind(server_address)
 print("Do Ctrl+c to exit the program !!")
 
@@ -23,7 +23,7 @@ while True:
 
     # Send data
     send_data = struct.pack('NN', 1, 2)
-    s.sendto(send_data, (ip, agora_recv_port))
+    s.sendto(send_data, (ip, tx_port))
     print("\n\n Server sent data\n\n")
 
     # timer delay for 1 sec
