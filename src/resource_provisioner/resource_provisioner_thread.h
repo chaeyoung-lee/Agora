@@ -47,6 +47,8 @@ class ResourceProvisionerThread {
  private:
   // Communicate with RP via UDP
   void RequestEventFromAgora();
+  void SendEventToAgora(const char* payload);
+  void ReceiveUdpPacketsFromRp();
   void ReceiveEventFromAgora();
   void SendUdpPacketsToRp(EventData event);
 

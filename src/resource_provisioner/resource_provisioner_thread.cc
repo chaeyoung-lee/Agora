@@ -59,31 +59,34 @@ void ResourceProvisionerThread::RequestEventFromAgora() {
 /*
  * RP -> ReceiveUdpPacketsFromRp() -> SendEventToAgora(payload) -> Agora
  */
-// void ResourceProvisionerThread::SendEventToAgora(const char* payload) {
-  // const auto* pkt = reinterpret_cast<const RPControlMsg*>(&payload[0]);
-  // // create event from pkt
-  // EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
-  // AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
-  //                 pkt->add_core_, pkt->remove_core_);
+void ResourceProvisionerThread::SendEventToAgora(const char* payload) {
+  const auto* pkt = reinterpret_cast<const RPControlMsg*>(&payload[0]);
+  // create event from pkt
+  EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
+  AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
+                  pkt->add_core_, pkt->remove_core_);
+  AGORA_LOG_INFO("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
+                  pkt->add_core_, pkt->remove_core_);
   // RtAssert(tx_queue_->enqueue(msg),
   //         "ResourceProvisionerThread: Failed to enqueue control packet");
   
-//   RequestEventFromAgora();
-// }
+  // RequestEventFromAgora();
+}
 
-// void ResourceProvisionerThread::ReceiveUdpPacketsFromRp() {
-//   ssize_t ret = udp_server_->Recv(&udp_pkt_buf_, udp_pkt_buf_.size());
-//   if (ret == 0) {
-//     AGORA_LOG_TRACE("ResourceProvisionerThread: No data received\n")
-//     return;
-//   } else if (ret < 0) {
-//     AGORA_LOG_TRACE("ResourceProvisionerThread: Error in reception %zu\n", ret);
-//     cfg_->Running(false);
-//     return;
-//   } else { /*Got some data*/
-//     SentEventToAgora((char*)&udp_pkt_buf_[0]);
-//   }
-// }
+void ResourceProvisionerThread::ReceiveUdpPacketsFromRp() {
+  ssize_t ret = udp_server_->Recv(&udp_pkt_buf_.at(0), udp_pkt_buf_.size());
+  if (ret == 0) {
+    AGORA_LOG_TRACE("ResourceProvisionerThread: No data received\n");
+    return;
+  } else if (ret < 0) {
+    AGORA_LOG_TRACE("ResourceProvisionerThread: Error in reception %zu\n", ret);
+    cfg_->Running(false);
+    return;
+  } else { /*Got some data*/
+    SendEventToAgora((char*)&udp_pkt_buf_[0]);
+    return;
+  }
+}
 
 /*
  * Agora -> ReceiveEventFromAgora() -> SendUdpPacketsToRp(event) -> RP
@@ -127,6 +130,7 @@ void ResourceProvisionerThread::RunEventLoop() {
     if ((GetTime::Rdtsc() - last_frame_tx_tsc) > tsc_delta_) {
       RequestEventFromAgora();
       ReceiveEventFromAgora();
+      ReceiveUdpPacketsFromRp();
       last_frame_tx_tsc = GetTime::Rdtsc();
     }
   }
