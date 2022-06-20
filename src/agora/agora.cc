@@ -20,7 +20,7 @@ static const size_t kDefaultMessageQueueSize = 512;
 static const size_t kDefaultWorkerQueueSize = 256;
 
 Agora::Agora(Config* const cfg)
-    : base_worker_core_offset_(cfg->CoreOffset() + 1 + cfg->SocketThreadNum()),
+    : base_worker_core_offset_(cfg->CoreOffset() + 1 + cfg->SocketThreadNum() + cfg->DynamicCoreAlloc()), // add 1 if dedicating core for RP
       config_(cfg),
       stats_(std::make_unique<Stats>(cfg)),
       phy_stats_(std::make_unique<PhyStats>(cfg, Direction::kUplink)),
@@ -97,21 +97,17 @@ Agora::Agora(Config* const cfg)
     }
   }
 
-  // Create worker threads
-  active_core_ = std::vector<bool>(100, false); // sysconf(_SC_NPROCESSORS_ONLN), TODO: vector size limit? dynamic allocation?
-  CreateThreads();
-
-  // Call dynamic core allocation
+  // Enable dynamic core allocation
   if (cfg->DynamicCoreAlloc()) {
-    // tx/rx with resource provisioner
-    const size_t rp_cpu_core = cfg->CoreOffset() + cfg->SocketThreadNum() + cfg->WorkerThreadNum() + 1;
+    const size_t rp_cpu_core = cfg->CoreOffset() + cfg->SocketThreadNum() + 1; // TODO: dedicate a core to RP?
     rp_thread_ = std::make_unique<ResourceProvisionerThread>(
         cfg, rp_cpu_core, &rp_request_queue_, &rp_response_queue_);
     rp_std_thread_ = std::thread(&ResourceProvisionerThread::RunEventLoop, rp_thread_.get());
-
-    // agora dynamic core allocator
-    // dynamic_core_thread_ = std::thread(&Agora::DynamicCore, this);
   }
+
+  // Create worker threads
+  active_core_ = std::vector<bool>(100, false); // sysconf(_SC_NPROCESSORS_ONLN), TODO: vector size limit? dynamic allocation?
+  CreateThreads();
 
   AGORA_LOG_INFO(
       "Master thread core %zu, TX/RX thread cores %zu--%zu, worker thread "
@@ -1015,7 +1011,6 @@ void Agora::Worker(int tid) {
       empty_queue = true;
     }
   }
-  std::printf("Agora worker %d exit\n", tid);
   AGORA_LOG_SYMBOL("Agora worker %d exit\n", tid);
 }
 
@@ -1144,72 +1139,46 @@ void Agora::CreateThreads() {
 }
 
 void Agora::UpdateCores(RPControlMsg rcm) {
-  AGORA_LOG_INFO("=================================\n"
-                "[ALERT] DYNAMIC CORE ALLOCATION\n");
+  AGORA_LOG_INFO("=================================\n");
+  AGORA_LOG_INFO("Agora: Updating compute resources\n");
 
-  // Add workers
-  size_t next_core_num_ = std::min(workers_.size() + rcm.add_core_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
-  for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
-    // Add queue
-    for (size_t j = 0; j < kScheduleQueues; j++) {
-      worker_ptoks_ptr_[core_i][j] =
-          new moodycamel::ProducerToken(complete_task_queue_[j]);
-    }
-
-    // Update info
-    active_core_[core_i] = true;
-    workers_.emplace_back(&Agora::Worker, this, core_i);
-    std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
-    AGORA_LOG_SYMBOL("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
-  }
-}
-
-void Agora::DynamicCore() {
-  while (this->config_->Running()) {
-  // for (size_t i; i < cfg->DynamicCoreNums().size(), i++) {
-    // size_t next_core_num_ = cfg->DynamicCoreNums()[i];
-    size_t next_core_num_ = 17;
-
-    // Hanging until necessary
-    sleep(5);
-
-    std::printf("=================================\n");
-    std::printf("[ALERT] DYNAMIC CORE ALLOCATION\n");
-
-    if (workers_.size() < next_core_num_) {
-      next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
-      // Add workers
-      for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
-          // Add Queue
-          for (size_t j = 0; j < kScheduleQueues; j++) {
-            worker_ptoks_ptr_[core_i][j] =
-                new moodycamel::ProducerToken(complete_task_queue_[j]);
-          }
-
-          active_core_[core_i] = true;
-          workers_.emplace_back(&Agora::Worker, this, core_i);
-          std::printf("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
-          AGORA_LOG_SYMBOL("[ALERT] ADDING CORE TO %ld\n", core_i + 1);
+  // Target core number
+  size_t next_core_num_ = workers_.size() + rcm.add_core_ - rcm.remove_core_;
+  
+  // Update workers
+  if (workers_.size() < next_core_num_) {
+    // Add workers
+    next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
+    for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
+      // Add queue
+      for (size_t j = 0; j < kScheduleQueues; j++) {
+        worker_ptoks_ptr_[core_i][j] =
+            new moodycamel::ProducerToken(complete_task_queue_[j]);
       }
-    } else {
-      // Remove workers
-      next_core_num_ = std::max(next_core_num_, (size_t)2); // minimum core number?
-      for (size_t core_i = workers_.size(); core_i > next_core_num_; core_i--) {
-        // Remove Queue
-        for (size_t j = 0; j < kScheduleQueues; j++) {
-          delete worker_ptoks_ptr_[core_i - 1][j];
-        }
-        active_core_[core_i - 1] = false;
-        RemoveCoreFromList(core_i - 1, base_worker_core_offset_);
-        std::printf("[ALERT] REMOVING CORE TO %ld\n", core_i);
-        AGORA_LOG_SYMBOL("[ALERT] REMOVING CORE TO %ld\n", core_i);
-      }
-    }
 
-    std::printf("[ALERT] ALLOCATION IS COMPLETE!\n");
-    std::printf("=================================\n");
-    AGORA_LOG_SYMBOL("[ALERT] ALLOCATION IS COMPLETE!\n=================================\n");
+      // Update info
+      active_core_[core_i] = true;
+      workers_.emplace_back(&Agora::Worker, this, core_i);
+      AGORA_LOG_INFO("Agora: add core to %ld\n", core_i + 1);
+    }
+  } else {
+    // Remove workers
+    next_core_num_ = std::max(next_core_num_, (size_t)2); // minimum core number?
+    for (size_t core_i = workers_.size(); core_i > next_core_num_; core_i--) {
+      // Remove Queue
+      for (size_t j = 0; j < kScheduleQueues; j++) {
+        delete worker_ptoks_ptr_[core_i - 1][j];
+      }
+
+      // Update info
+      active_core_[core_i - 1] = false;
+      RemoveCoreFromList(core_i - 1, base_worker_core_offset_);
+      AGORA_LOG_INFO("Agora: remove core to %ld\n", core_i);
+    }
   }
+
+  AGORA_LOG_INFO("Agora: Resource update is complete\n");
+  AGORA_LOG_INFO("=================================\n");
 }
 
 void Agora::UpdateRanConfig(RanConfig rc) {
