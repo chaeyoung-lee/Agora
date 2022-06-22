@@ -533,12 +533,11 @@ void Agora::Start() {
 
         case EventType::kPacketToRp: {
           // Traffic info to RP
-          RPTrafficMsg rtm; // = UpdateTraffic();
-          // TODO: pseudo data
-          rtm.latency_ = 10;
-          rtm.queue_load_ = 5;
+          RPTrafficMsg rtm;
+          rtm.latency_ = this->stats_->MeasureLastFrameLatency();
+          rtm.core_num_ = GetAvailableCores();
           TryEnqueueFallback(&rp_request_queue_,
-                          EventData(EventType::kPacketToRp, rtm.latency_, rtm.queue_load_));
+                          EventData(EventType::kPacketToRp, rtm.latency_, rtm.core_num_));
         } break;
 
         case EventType::kRANUpdate: {
@@ -1140,15 +1139,16 @@ void Agora::CreateThreads() {
 
 void Agora::UpdateCores(RPControlMsg rcm) {
   AGORA_LOG_INFO("=================================\n");
-  AGORA_LOG_INFO("Agora: Updating compute resources\n");
+  AGORA_LOG_INFO("Agora: Updating compute resources - current: %ld, available: %ld\n", workers_.size(), GetAvailableCores() - base_worker_core_offset_);
 
   // Target core number
   size_t next_core_num_ = workers_.size() + rcm.add_core_ - rcm.remove_core_;
+  size_t max_core_num_ = GetAvailableCores() - base_worker_core_offset_; // TODO: (size_t)sysconf(_SC_NPROCESSORS_ONLN) gives all available core # in the machine
   
   // Update workers
   if (workers_.size() < next_core_num_) {
     // Add workers
-    next_core_num_ = std::min(next_core_num_, (size_t)sysconf(_SC_NPROCESSORS_ONLN));
+    next_core_num_ = std::min(next_core_num_, max_core_num_);
     for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
       // Add queue
       for (size_t j = 0; j < kScheduleQueues; j++) {
@@ -1159,7 +1159,7 @@ void Agora::UpdateCores(RPControlMsg rcm) {
       // Update info
       active_core_[core_i] = true;
       workers_.emplace_back(&Agora::Worker, this, core_i);
-      AGORA_LOG_INFO("Agora: add core to %ld\n", core_i + 1);
+      AGORA_LOG_INFO("Agora: add core # %ld\n", core_i + 1);
     }
   } else {
     // Remove workers
@@ -1173,11 +1173,13 @@ void Agora::UpdateCores(RPControlMsg rcm) {
       // Update info
       active_core_[core_i - 1] = false;
       RemoveCoreFromList(core_i - 1, base_worker_core_offset_);
-      AGORA_LOG_INFO("Agora: remove core to %ld\n", core_i);
+      workers_.at(core_i - 1).join();
+      AGORA_LOG_INFO("Agora: remove core # %ld\n", core_i);
     }
+    workers_.resize(next_core_num_);
   }
 
-  AGORA_LOG_INFO("Agora: Resource update is complete\n");
+  AGORA_LOG_INFO("Agora: Resource update is complete - current: %ld, available: %ld\n", workers_.size(), GetAvailableCores() - base_worker_core_offset_);
   AGORA_LOG_INFO("=================================\n");
 }
 

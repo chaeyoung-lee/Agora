@@ -229,7 +229,9 @@ Config::Config(const std::string& jsonfile)
   bs_mac_tx_port_ = tdd_conf.value("bs_mac_tx_port", kMacBaseRemotePort);
   bs_mac_rx_port_ = tdd_conf.value("bs_mac_rx_port", kMacBaseLocalPort);
 
+  rp_remote_host_name = tdd_conf.value("rp_remote_host_name", "127.0.0.1");
   rp_rx_port_ = tdd_conf.value("rp_rx_port", 7777);
+  rp_tx_port = tdd_conf.value("rp_tx_port", 7777);
 
   /* frame configurations */
   cp_len_ = tdd_conf.value("cp_size", 0);
@@ -481,7 +483,7 @@ Config::Config(const std::string& jsonfile)
   core_offset_ = tdd_conf.value("core_offset", 0);
   socket_thread_num_ = tdd_conf.value("socket_thread_num", 4);
   if (dynamic_core_allocation_) {
-    worker_thread_num_ = GetAvailableCores() - (core_offset_ + socket_thread_num_ + 1);
+    worker_thread_num_ = GetAvailableCores() - (core_offset_ + socket_thread_num_ + dynamic_core_allocation_ + 1); // use all available cores
   } else {
     worker_thread_num_ = tdd_conf.value("worker_thread_num", 25);
   }

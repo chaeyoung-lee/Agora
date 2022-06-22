@@ -105,8 +105,11 @@ void ResourceProvisionerThread::SendUdpPacketsToRp(EventData event) {
   // Create traffic data packet
   RPTrafficMsg msg;
   msg.latency_ = event.tags_[0];
-  msg.queue_load_ = event.tags_[1];
+  msg.core_num_ = event.tags_[1];
   udp_client_->Send(kRpRemoteHostname, kRpRemotePort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
+  udp_client_->Send(cfg_->RpRemoteHostName, cfg_->RpTxPort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
+  
+  cfg_->RpRxPort()
 
   // // update RAN config within Agora
   // SendRanConfigUpdate(EventData(EventType::kRANUpdate));

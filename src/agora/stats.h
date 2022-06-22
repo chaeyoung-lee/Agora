@@ -65,6 +65,10 @@ class Stats {
   /// If worker stats collection is enabled, combine and update per-worker
   /// stats for all uplink and donwlink Doer types. Else return immediately.
   void UpdateStats(size_t frame_id);
+  
+  /// Measure the last frame latency
+  /// Time done with decoding - time starting process
+  double MeasureLastFrameLatency();
 
   /// Save master timestamps to a file. If worker stats collection is enabled,
   /// also save detailed worker timing info to a file.

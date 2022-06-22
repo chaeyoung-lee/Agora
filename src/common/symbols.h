@@ -321,11 +321,6 @@ static constexpr size_t kMacBaseLocalPort = 8180;
 // TODO: need to generalize for hostname, port pairs for each client
 static constexpr size_t kMacBaseClientPort = 7070;
 
-// Resource Provisioner (RP) is running in this address
-// We send UDP packets to RP including traffic data
-static constexpr char kRpRemoteHostname[] = "127.0.0.2";
-static constexpr size_t kRpRemotePort = 7070;
-
 // Number of subcarriers in a partial transpose block
 static constexpr size_t kTransposeBlockSize = 8;
 static_assert(IsPowerOfTwo(kTransposeBlockSize));  // For cheap modulo

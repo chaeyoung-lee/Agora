@@ -820,7 +820,9 @@ class Config {
   size_t ue_mac_tx_port_;
 
   // Port ID at RP
+  std::string rp_remote_host_name;
   size_t rp_rx_port_;
+  size_t rp_tx_port_;
 
   // Number of frames_ sent by sender during testing = number of frames_
   // processed by Agora before exiting.

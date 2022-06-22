@@ -20,7 +20,7 @@ class RPControlMsg {
 class RPTrafficMsg {
  public:
   size_t latency_;
-  size_t queue_load_;
+  size_t core_num_;
 };
 
 #endif  // RP_CONFIG_H_
