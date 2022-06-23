@@ -106,10 +106,7 @@ void ResourceProvisionerThread::SendUdpPacketsToRp(EventData event) {
   RPTrafficMsg msg;
   msg.latency_ = event.tags_[0];
   msg.core_num_ = event.tags_[1];
-  udp_client_->Send(kRpRemoteHostname, kRpRemotePort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
-  udp_client_->Send(cfg_->RpRemoteHostName, cfg_->RpTxPort, (uint8_t*)&msg, sizeof(RPTrafficMsg));
-  
-  cfg_->RpRxPort()
+  udp_client_->Send(cfg_->RpRemoteHostName(), cfg_->RpTxPort(), (uint8_t*)&msg, sizeof(RPTrafficMsg));
 
   // // update RAN config within Agora
   // SendRanConfigUpdate(EventData(EventType::kRANUpdate));
@@ -124,7 +121,6 @@ void ResourceProvisionerThread::RunEventLoop() {
 
   PinToCoreWithOffset(ThreadType::kWorkerRpTXRX, core_offset_,
                       0 /* thread ID */);
-
   size_t last_frame_tx_tsc = 0; // keep the frequency of function call
 
   while (cfg_->Running() == true) {

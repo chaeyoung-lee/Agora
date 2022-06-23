@@ -312,7 +312,9 @@ class Config {
   inline size_t UeMacRxPort() const { return this->ue_mac_rx_port_; }
   inline size_t UeMacTxPort() const { return this->ue_mac_tx_port_; }
 
+  inline std::string RpRemoteHostName() const { return this->rp_remote_host_name_; }
   inline size_t RpRxPort() const { return this->rp_rx_port_; }
+  inline size_t RpTxPort() const { return this->rp_tx_port_; }
 
   /* Inline accessors (complex types) */
   inline const std::vector<int>& ClTxAdvance() const {
@@ -820,7 +822,7 @@ class Config {
   size_t ue_mac_tx_port_;
 
   // Port ID at RP
-  std::string rp_remote_host_name;
+  std::string rp_remote_host_name_;
   size_t rp_rx_port_;
   size_t rp_tx_port_;
 

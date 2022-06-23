@@ -1,11 +1,15 @@
+"""
+Resource Provisioner Class - prototype
+"""
 import socket
 import sys
 import struct
 import time
 
-ip = "127.0.0.2"
-rx_port = 7777 # Agora -> RP
-tx_port = 7777 # Agora <- RP
+# Network parameters
+ip = "127.0.0.1"
+rx_port = 1000 # Agora -> RP
+tx_port = 2000 # Agora <- RP
 
 # Create a UDP socket
 s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -13,11 +17,6 @@ s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_address = (ip, rx_port)
 s.bind(server_address)
 print("Do Ctrl+c to exit the program !!")
-
-# Send data
-send_data = struct.pack('NN', 1, 2)
-s.sendto(send_data, (ip, tx_port))
-print("\n\n Server sent data\n\n")
 
 while True:
     # Receive data

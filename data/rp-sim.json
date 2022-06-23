@@ -17,6 +17,9 @@
     /* Compute configuration */
     "core_offset": 4,
     "dynamic_core": true,
+    "rp_remote_host_name": "127.0.0.1", /* "127.0.0.2", "172.17.0.1" for docker host*/
+    "rp_rx_port": 2000,
+    "rp_tx_port": 1000,
     "exclude_cores": [
         0
     ],
