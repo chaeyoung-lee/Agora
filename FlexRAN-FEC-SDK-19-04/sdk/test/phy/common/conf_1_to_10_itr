@@ -1,0 +1,132 @@
+{
+ "performance": [
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 1,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 2,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 3,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 4,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 5,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 6,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 7,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    },
+    {
+      "name": "BG1_Zc384_Ro46_F0",
+      "parameters": {
+        "Zc": 384,
+        "baseGraph": 1,
+        "nRows": 46,
+        "numChannelLlrs": 25344,
+        "numFillerBits": 0,
+        "maxIterations": 8,
+        "enableEarlyTermination": false,
+        "input": "test_vectors/LLRs_BG1_Zc384_Ro46_F0.bin"
+      },
+      "references": {
+        "output": "test_vectors/input_BG1_Zc384_F0.bin"
+      }
+    }
+ ]
+}
