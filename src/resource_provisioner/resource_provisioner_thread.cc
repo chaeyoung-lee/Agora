@@ -61,14 +61,19 @@ void ResourceProvisionerThread::RequestEventFromAgora() {
  */
 void ResourceProvisionerThread::SendEventToAgora(const char* payload) {
   const auto* pkt = reinterpret_cast<const RPControlMsg*>(&payload[0]);
-  // create event from pkt
-  EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
-  AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
-                  pkt->add_core_, pkt->remove_core_);
-  RtAssert(tx_queue_->enqueue(msg),
-          "ResourceProvisionerThread: Failed to enqueue control packet");
-  
-  // RequestEventFromAgora();
+
+  if (pkt->add_core_ == 0 && pkt->remove_core_ == 0) {
+    // request traffic data
+    AGORA_LOG_INFO("ResourceProvisionerThread: RP requested traffic data\n");
+    RequestEventFromAgora();
+  } else {
+    // create event from pkt
+    EventData msg(EventType::kPacketFromRp, pkt->add_core_, pkt->remove_core_);
+    AGORA_LOG_FRAME("ResourceProvisionerThread: Tx RP data of add_cores %zu, remove_cores %zu\n",
+                    pkt->add_core_, pkt->remove_core_);
+    RtAssert(tx_queue_->enqueue(msg),
+            "ResourceProvisionerThread: Failed to enqueue control packet");
+  }
 }
 
 void ResourceProvisionerThread::ReceiveUdpPacketsFromRp() {
@@ -125,7 +130,7 @@ void ResourceProvisionerThread::RunEventLoop() {
 
   while (cfg_->Running() == true) {
     if ((GetTime::Rdtsc() - last_frame_tx_tsc) > tsc_delta_) {
-      RequestEventFromAgora();
+      // RequestEventFromAgora();
       ReceiveEventFromAgora();
       ReceiveUdpPacketsFromRp();
       last_frame_tx_tsc = GetTime::Rdtsc();

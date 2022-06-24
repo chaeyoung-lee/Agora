@@ -1,35 +1,103 @@
 use tokio::net::UdpSocket;
+use tokio::time::{delay_for, Duration};
 use std::io;
+use std::process::Command;
 
-static ADDR: &str  = "127.0.0.1:1000";
+static TX_ADDR: &str  = "127.0.0.1:2000";
+static RX_ADDR: &str = "127.0.0.1:1000";
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
-    let mut sock = UdpSocket::bind(ADDR).await?;
-    let mut buf = [0; 1024];
+    let mut socket = create_udp_socket(RX_ADDR).await?;
     loop {
-        let (len, addr) = sock.recv_from(&mut buf).await?;
-        println!("{:?} bytes received from {:?}", len, addr);
+        delay_for(Duration::from_secs(5)).await; // sends request every 5s
+        let traffic = retrieve_agora_traffic(&mut socket).await?; // TODO: implement timeout!
+        println!("Agora traffic: {}, current cores: {}\n", traffic[0], traffic[1]);
 
-        let len = sock.send_to(&buf[..len], addr).await?;
-        println!("{:?} bytes sent", len);
+        if traffic[0] > 10000 {
+            println!("Too much traffic: add 10 cores\n");
+            send_control_message(&mut socket, 10, 0, traffic[1] as u8).await?;
+        } else if traffic[0] < 5000 {
+            println!("Too relaxed traffic: remove 10 cores\n");
+            send_control_message(&mut socket, 0, 10, traffic[1] as u8).await?;
+        }
     }
 }
 
-async fn request_traffic_data(mut socket: UdpSocket) -> io::Result<()> {
-    let message = [0, 0];
-    let len = socket.send_to(&message, ADDR).await?;
+async fn create_udp_socket(host: &str) -> io::Result<UdpSocket> {
+    println!("Creating socket on {}", host);
+    let socket = UdpSocket::bind(&host).await?;
+    return Ok(socket);
+}
+
+/* UDP Functions */
+
+// Send message through UDP socket
+async fn send_message(socket: &mut UdpSocket, message: &[u8; 16]) -> io::Result<()> {
+    let len = socket.send_to(message, TX_ADDR).await?;
     println!("{:?} bytes sent", len);
     return Ok(());
 }
 
-async fn receive_traffic_data(mut socket: UdpSocket) -> io::Result<()> {
+// Listen message on UDP socket
+async fn listen_message(socket: &mut UdpSocket) -> io::Result<[u64; 2]> {
     let mut buf = [0; 100];
     let (len, addr) = socket.recv_from(&mut buf).await?;
-    println!("{:?} bytes received from {:?} - content: {:?}", len, addr, &buf[..len]);
+    let a: u64 = u64::from_ne_bytes(buf[..8].try_into().unwrap());
+    let b: u64 = u64::from_ne_bytes(buf[8..len].try_into().unwrap());
+    let message = [a, b];
+    println!("{:?} bytes received from {:?} - content: {:?}", len, addr, &message);
+    return Ok(message);
+}
+
+/* Resource Provisioner Logic */
+
+async fn retrieve_agora_traffic(socket: &mut UdpSocket) -> io::Result<[u64; 2]> {
+    let message = [0; 16];
+    send_message(socket, &message).await?;
+    return listen_message(socket).await;
+}
+
+async fn send_control_message(socket: &mut UdpSocket, add_cores: u8, remove_cores: u8, curr_cores: u8) -> io::Result<()> {
+    let mut message = [0; 16];
+    message[0] = add_cores;
+    message[8] = remove_cores;
+
+    if add_cores > remove_cores {
+        // ask for cores
+       let result = request_resource_update(curr_cores, add_cores, remove_cores).await?;
+       delay_for(Duration::from_secs(5)).await; // TODO: intelligent check
+       if result {
+        // allow agora to add workers
+        send_message(socket, &message).await?;
+        println!("Agora workers: added");
+       }
+    } else {
+        // allow agora to remove workers
+        send_message(socket, &message).await?;
+        loop { // wait until worker has been removed
+            let traffic = retrieve_agora_traffic(socket).await?;
+            if traffic[1] <= (curr_cores + add_cores - remove_cores) as u64 {
+                println!("Agora workers: removed");
+                break;
+            }
+        }
+        let result = request_resource_update(curr_cores, add_cores, remove_cores).await?;
+    }
+
+    delay_for(Duration::from_secs(1)).await; // give time for Agora to process request TODO: more intelligent way?
     return Ok(());
 }
 
-async fn send_control_message(mut socket: UdpSocket) -> io::Result<()> {
-    return Ok(());   
+/* Communicate with Docker */
+
+async fn request_resource_update(curr_cores: u8, add_cores: u8, remove_cores: u8) -> io::Result<bool> {
+    let num = curr_cores + add_cores - remove_cores;
+    let output = Command::new("docker")
+                                    .arg("update")
+                                    .arg(format!("--cpuset-cpus=0-{}", num))
+                                    .arg("agora_net")
+                                    .output()
+                                    .expect("Docker: Failed to execute process\n");
+    return Ok(output.status.success());
 }
