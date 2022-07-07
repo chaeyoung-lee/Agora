@@ -172,6 +172,7 @@ class Config {
     }
   }
 
+  inline std::vector<size_t> ExcludedCores() const { return this->excluded; }
   inline size_t CoreOffset() const { return this->core_offset_; }
   inline size_t WorkerThreadNum() const { return this->worker_thread_num_; }
   inline size_t SocketThreadNum() const { return this->socket_thread_num_; }
@@ -673,6 +674,7 @@ class Config {
   std::string channel_;
   std::string ue_channel_;
 
+  std::vector<size_t> excluded;
   size_t core_offset_;
   size_t worker_thread_num_;
   size_t socket_thread_num_;

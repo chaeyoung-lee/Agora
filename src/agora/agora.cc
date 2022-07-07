@@ -1141,13 +1141,16 @@ void Agora::UpdateCores(RPControlMsg rcm) {
   AGORA_LOG_INFO("=================================\n");
   AGORA_LOG_INFO("Agora: Updating compute resources - current: %ld, available: %ld\n", workers_.size(), GetAvailableCores() - base_worker_core_offset_);
 
-  // Target core number
+  // Target core numbers
   size_t next_core_num_ = workers_.size() + rcm.add_core_ - rcm.remove_core_;
   size_t max_core_num_ = GetAvailableCores() - base_worker_core_offset_; // TODO: (size_t)sysconf(_SC_NPROCESSORS_ONLN) gives all available core # in the machine
-  
+  UpdateCpuLayout(config_->ExcludedCores());
+
   // Update workers
   if (workers_.size() < next_core_num_) {
     // Add workers
+    AGORA_LOG_INFO("[ALERTTTTTT]: CPU Layout Update!!!\n");
+    // SetCpuLayoutOnNumaNodes(true, config_->ExcludedCores(), true);
     next_core_num_ = std::min(next_core_num_, max_core_num_);
     for (size_t core_i = workers_.size(); core_i < next_core_num_; core_i++) {
       // Add queue

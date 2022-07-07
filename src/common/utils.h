@@ -43,8 +43,9 @@
 // Default argument is to exclude core 0 from the list
 void SetCpuLayoutOnNumaNodes(
     bool verbose = false,
-    const std::vector<size_t>& cores_to_exclude = std::vector<size_t>(1, 0),
-    bool dynamic_core_allocation = false);
+    const std::vector<size_t>& cores_to_exclude = std::vector<size_t>(1, 0));
+
+void UpdateCpuLayout(const std::vector<size_t>& cores_to_exclude);
 
 size_t GetPhysicalCoreId(size_t core_id);
 

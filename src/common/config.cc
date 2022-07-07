@@ -36,7 +36,7 @@ Config::Config(const std::string& jsonfile)
 
   // Initialize the compute configuration
   // Default exclude 1 core with id = 0
-  std::vector<size_t> excluded(1, 0);
+  excluded.emplace_back(0);
   if (tdd_conf.contains("exclude_cores")) {
     auto exclude_cores = tdd_conf.at("exclude_cores");
     excluded.resize(exclude_cores.size());
@@ -45,7 +45,7 @@ Config::Config(const std::string& jsonfile)
     }
   }
   dynamic_core_allocation_ = tdd_conf.value("dynamic_core", false);
-  SetCpuLayoutOnNumaNodes(true, excluded, dynamic_core_allocation_);
+  SetCpuLayoutOnNumaNodes(true, excluded);
 
   num_cells_ = tdd_conf.value("cells", 1);
   num_radios_ = 0;

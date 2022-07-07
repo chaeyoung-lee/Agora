@@ -33,8 +33,6 @@ ResourceProvisionerThread::ResourceProvisionerThread(
   const size_t udp_pkt_len = 32; //sizeof(RPControlMsg);
   udp_pkt_buf_.resize(udp_pkt_len + kUdpRxBufferPadding);
 
-  // TODO: See if it makes more sense to split up the UE's by port here for
-  // client mode.
   size_t udp_server_port = cfg_->RpRxPort();
   AGORA_LOG_INFO(
       "ResourceProvisionerThread: setting up udp server for rp data at port %zu\n",
@@ -112,9 +110,6 @@ void ResourceProvisionerThread::SendUdpPacketsToRp(EventData event) {
   msg.latency_ = event.tags_[0];
   msg.core_num_ = event.tags_[1];
   udp_client_->Send(cfg_->RpRemoteHostName(), cfg_->RpTxPort(), (uint8_t*)&msg, sizeof(RPTrafficMsg));
-
-  // // update RAN config within Agora
-  // SendRanConfigUpdate(EventData(EventType::kRANUpdate));
 }
 
 void ResourceProvisionerThread::RunEventLoop() {

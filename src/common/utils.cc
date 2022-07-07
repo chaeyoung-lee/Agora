@@ -77,51 +77,72 @@ static void PrintBitmask(const struct bitmask* bm) {
 void PrintCoreAssignmentSummary() { PrintCoreList(core_list); }
 
 void SetCpuLayoutOnNumaNodes(bool verbose,
-                             const std::vector<size_t>& cores_to_exclude,
-                             bool dynamic_core_allocation) {
-  if (cpu_layout_initialized == false) {
-    int lib_accessable = numa_available();
-    if (lib_accessable == -1) {
-      throw std::runtime_error("libnuma not accessable");
+                             const std::vector<size_t>& cores_to_exclude) {
+  int lib_accessable = numa_available();
+  if (lib_accessable == -1) {
+    throw std::runtime_error("libnuma not accessable");
+  }
+  int numa_max_cpus = numa_num_configured_cpus();
+  if (verbose) {std::printf("System CPU count %d\n", numa_max_cpus);}
+
+  // Find available cpus in this machine
+  std::ifstream file("/sys/fs/cgroup/cpuset/cpuset.cpus");
+  std::string s;
+  std::getline(file, s);
+  size_t start_core = (size_t) stoi(s.substr(0, s.find("-")));
+  size_t end_core = (size_t) stoi(s.substr(s.find("-") + 1));
+
+  bitmask* bm = numa_bitmask_alloc(numa_max_cpus);
+  for (int i = 0; i <= numa_max_node(); ++i) {
+    numa_node_to_cpus(i, bm);
+    if (verbose) {
+      std::printf("NUMA node %d ", i);
+      PrintBitmask(bm);
+      std::printf(" CPUs: ");
     }
-    int numa_max_cpus = numa_num_configured_cpus();
-    std::printf("System CPU count %d\n", numa_max_cpus);
-
-    // Find available cpus in this machine
-    std::ifstream file("/sys/fs/cgroup/cpuset/cpuset.cpus");
-    std::string s;
-    std::getline(file, s);
-    size_t start_core = (size_t) stoi(s.substr(0, s.find("-")));
-    size_t end_core = (size_t) stoi(s.substr(s.find("-") + 1));
-
-    bitmask* bm = numa_bitmask_alloc(numa_max_cpus);
-    for (int i = 0; i <= numa_max_node(); ++i) {
-      numa_node_to_cpus(i, bm);
-      if (verbose) {
-        std::printf("NUMA node %d ", i);
-        PrintBitmask(bm);
-        std::printf(" CPUs: ");
-      }
-      for (size_t j = 0; j < bm->size; j++) {
-        if (numa_bitmask_isbitset(bm, j) != 0) {
-          if (verbose) {
-            std::printf("%zu ", j);
-          }
-          // If core id is not in the excluded list
-          if (start_core <= j && j <= end_core && (std::find(cores_to_exclude.begin(), cores_to_exclude.end(), j) == cores_to_exclude.end())) {
-              cpu_layout.emplace_back(j);
-          }
+    for (size_t j = 0; j < bm->size; j++) {
+      if (numa_bitmask_isbitset(bm, j) != 0) {
+        if (verbose) {
+          std::printf("%zu ", j);
+        }
+        // If core id is not in the excluded list
+        if (start_core <= j && j <= end_core && (std::find(cores_to_exclude.begin(), cores_to_exclude.end(), j) == cores_to_exclude.end())) {
+            cpu_layout.emplace_back(j);
         }
       }
-      if (verbose) {
-        std::printf("\n");
-      }
     }
-    std::printf("Usable Cpu count %zu\n", cpu_layout.size());
-
-    numa_bitmask_free(bm);
-    cpu_layout_initialized = true;
+    if (verbose) {
+      std::printf("\n");
+    }
   }
+  
+  if (verbose) {std::printf("Usable Cpu count %zu\n", cpu_layout.size());}
+
+  numa_bitmask_free(bm);
+  cpu_layout_initialized = true; // Reinitialize cpu layout regardless of this value
+}
+
+void UpdateCpuLayout(const std::vector<size_t>& cores_to_exclude) {
+  cpu_layout.clear();
+  SetCpuLayoutOnNumaNodes(false, cores_to_exclude);
+  // // Find available cpus in this machine
+  // std::ifstream file("/sys/fs/cgroup/cpuset/cpuset.cpus");
+  // std::string s;
+  // std::getline(file, s);
+  // size_t end_core = (size_t) stoi(s.substr(s.find("-") + 1));
+
+  // // Update layout
+  // if (cpu_layout.size() <= end_core) {
+  //   for (size_t j = cpu_layout.size(); j < end_core; j++) {
+  //     std::printf("Added to CPU LAYOUT\n");
+  //     cpu_layout.emplace_back(j);
+  //   }
+  // } else {
+  //   for (size_t j = cpu_layout.size(); j > end_core + 1; j--) {
+  //     std::printf("REmoved from CPU LAYOUT");
+  //     cpu_layout.pop_back();
+  //   }
+  // }
 }
 
 size_t GetPhysicalCoreId(size_t core_id) {
@@ -166,6 +187,7 @@ void PinToCoreWithOffset(ThreadType thread_type, size_t core_offset,
 
     size_t assigned_core = GetCoreId(requested_core);
 
+    std::printf("PinToCoreWithOffset: thread_id: %ld, requested_core: %ld, assigned_core: %ld \n", thread_id, requested_core, assigned_core);
     if (allow_reuse == false) {
       // Check to see if core has already been assigned
       //(faster search is possible here but isn't necessary)
@@ -206,20 +228,7 @@ void PinToCoreWithOffset(ThreadType thread_type, size_t core_offset,
 void RemoveCoreFromList(int core_id, int core_offset) {
   if (core_list.back().requested_core_ == (size_t)(core_id + core_offset)) {
     core_list.pop_back();
-    // std::printf("CORE REMOVED FROM MAP at %d with offset %d!\n", core_id, core_offset);
   }
-
-  // bool removed = false;
-  // for (auto& iter : core_list) {
-  //   if (iter.requested_core_ == core_id + core_offset) {
-  //     core_list.remove(iter);
-  //     removed = true;
-  //     break;
-  //   }
-  // }
-  // if (!removed) {
-  //   std::printf("Requested core removal at %d with offset %d does not exist in the list.\n", core_id, core_offset);
-  // }
 } 
 
 size_t GetAvailableCores() {
