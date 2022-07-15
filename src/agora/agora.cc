@@ -535,7 +535,7 @@ void Agora::Start() {
           // Traffic info to RP
           RPTrafficMsg rtm;
           rtm.latency_ = this->stats_->MeasureLastFrameLatency();
-          rtm.core_num_ = GetAvailableCores();
+          rtm.core_num_ = workers_.size() + base_worker_core_offset_; //GetAvailableCores();
           TryEnqueueFallback(&rp_request_queue_,
                           EventData(EventType::kPacketToRp, rtm.latency_, rtm.core_num_));
         } break;

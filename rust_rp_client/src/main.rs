@@ -1,10 +1,17 @@
 use tokio::net::UdpSocket;
 use tokio::time::{delay_for, Duration};
 use std::io;
+use std::cmp;
 use std::process::Command;
 
+// Communication parameters
 static TX_ADDR: &str  = "127.0.0.1:2000";
 static RX_ADDR: &str = "127.0.0.1:1000";
+
+// Resource parameters
+static MAX_CORE: u8 = 50;
+static MIN_CORE: u8 = 10;
+static STEPS: u8 = 5;
 
 #[tokio::main]
 async fn main() -> io::Result<()> {
@@ -15,11 +22,25 @@ async fn main() -> io::Result<()> {
         println!("Agora traffic: {}, current cores: {}\n", traffic[0], traffic[1]);
 
         if traffic[0] > 10000 {
-            println!("Too much traffic: add 10 cores\n");
-            send_control_message(&mut socket, 10, 0, traffic[1] as u8).await?;
+            let mut add_cores = STEPS;
+            if traffic[1] as u8 + add_cores > MAX_CORE {
+                add_cores = MAX_CORE - traffic[1] as u8;
+            }
+
+            if add_cores > 0 {
+                println!("Too much traffic: add {:?} cores\n", add_cores);
+                send_control_message(&mut socket, STEPS, 0, traffic[1] as u8).await?;
+            }
         } else if traffic[0] < 5000 {
-            println!("Too relaxed traffic: remove 10 cores\n");
-            send_control_message(&mut socket, 0, 10, traffic[1] as u8).await?;
+            let mut remove_cores = STEPS;
+            if traffic[1] as u8 - remove_cores < MIN_CORE {
+                remove_cores = traffic[1] as u8 - MIN_CORE;
+            }
+
+            if remove_cores > 0 {
+                println!("Too relaxed traffic: remove {:?} cores\n", remove_cores);
+                send_control_message(&mut socket, 0, remove_cores, traffic[1] as u8).await?;
+            }
         }
     }
 }
